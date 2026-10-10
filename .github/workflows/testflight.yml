@@ -15,9 +15,13 @@ name: TestFlight (Nagram)
 #   DIST_CERT_P12_BASE64                - base64 of the Apple Distribution (Kitta) cert+key .p12
 #   DIST_CERT_PASSWORD                  - password for that .p12
 #
+# The notes in docs/nagram/releases/<app version>.md are the What to Test text
+# of a build that is distributed to the external group.
+#
 # A build that goes to TestFlight is also published as the GitHub release
 # v<app version>-<build number> and posted to the Telegram channels, with the
-# notes in docs/nagram/releases/<app version>.md. The post needs the secret
+# same notes followed by docs/nagram/releases/install.md, which is the same
+# for every release and of no use in TestFlight. The post needs the secret
 # NAGRAM_CHANNEL_BOT_TOKEN and the variables NAGRAM_CHANNEL_ASSETS_CHAT_ID
 # (gets the files), NAGRAM_CHANNEL_CHAT_ID (gets a copy of the post); nothing
 # is posted while they are missing. Its Bot API server runs with
@@ -84,6 +88,10 @@ jobs:
             echo "::error::$NOTES is missing, write the notes of $APP_VERSION before releasing it."
             exit 1
           fi
+          test -f docs/nagram/releases/install.md
+          # The same notes become the What to Test text of the build, which
+          # has a limit: this is where notes that are too long are found.
+          python3 scripts/ci-testflight-group.py --notes "$NOTES" --print-notes
         env:
           PUBLISH: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/release') || inputs.publish }}
 
@@ -434,74 +442,10 @@ jobs:
           # Use the ASC REST API to find the processed build and add it to the external
           # group — avoids re-uploading the IPA and decouples distribution from upload,
           # so BETA_CONTRACT_MISSING or group misconfig cannot abort the upload step.
-          python3 - <<'PY'
-          import os, sys, time, json, base64, urllib.request, urllib.error
-          from cryptography.hazmat.primitives.serialization import load_pem_private_key
-          from cryptography.hazmat.primitives.asymmetric.ec import ECDSA
-          from cryptography.hazmat.primitives.hashes import SHA256
-          from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
-
-          kid    = os.environ["ASC_KEY_ID"]
-          issuer = os.environ["ASC_ISSUER_ID"]
-          app_id = os.environ["APPSTORE_ID"]
-          group_name = os.environ["TESTFLIGHT_GROUPS"]
-          build_number = os.environ["BUILD_NUMBER"]
-          key = load_pem_private_key(
-              open(os.path.expanduser(f"~/.appstoreconnect/private_keys/AuthKey_{kid}.p8")).read().encode(),
-              password=None)
-
-          def tok():
-              hdr = base64.urlsafe_b64encode(json.dumps({"alg":"ES256","kid":kid,"typ":"JWT"}).encode()).rstrip(b"=")
-              now = int(time.time())
-              pay = base64.urlsafe_b64encode(json.dumps({"iss":issuer,"iat":now,"exp":now+600,"aud":"appstoreconnect-v1"}).encode()).rstrip(b"=")
-              msg = hdr + b"." + pay
-              sig = key.sign(msg, ECDSA(SHA256()))
-              r, s = decode_dss_signature(sig)
-              return (msg + b"." + base64.urlsafe_b64encode(r.to_bytes(32,"big")+s.to_bytes(32,"big")).rstrip(b"=")).decode()
-
-          def api(method, path, body=None):
-              req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path,
-                    method=method, headers={"Authorization": f"Bearer {tok()}", "Content-Type": "application/json"})
-              if body: req.data = json.dumps(body).encode()
-              try:
-                  with urllib.request.urlopen(req) as r: return r.status, json.loads(r.read())
-              except urllib.error.HTTPError as e: return e.code, {"_body": e.read().decode()}
-
-          # 1. Find the build (wait up to 30 min for processing)
-          build_id = None
-          for attempt in range(36):
-              s, r = api("GET", f"/v1/builds?filter[app]={app_id}&filter[version]={build_number}"
-                                "&filter[processingState]=VALID&sort=-uploadedDate&limit=1")
-              data = r.get("data", [])
-              if data:
-                  build_id = data[0]["id"]
-                  print(f"Build found: {build_id} (build {build_number})")
-                  break
-              print(f"Waiting for build {build_number} to finish processing ({attempt+1}/36)...")
-              time.sleep(50)
-          if not build_id:
-              print("ERROR: build not found after 30 minutes", file=sys.stderr); sys.exit(1)
-
-          # 2. Find the external beta group by name
-          s, r = api("GET", f"/v1/apps/{app_id}/betaGroups?filter[isInternalGroup]=false")
-          groups = [g for g in r.get("data", []) if g["attributes"]["name"] == group_name]
-          if not groups:
-              available = ", ".join(g["attributes"]["name"] for g in r.get("data", []))
-              print(f"WARNING: external group '{group_name}' not found; uploaded build remains in TestFlight.", file=sys.stderr)
-              if available:
-                  print(f"Available external groups: {available}", file=sys.stderr)
-              sys.exit(0)
-          group_id = groups[0]["id"]
-          print(f"Group: {group_name} ({group_id})")
-
-          # 3. Add build to group (triggers Beta App Review + notifies testers)
-          s, r = api("POST", f"/v1/betaGroups/{group_id}/relationships/builds",
-                     {"data": [{"type": "builds", "id": build_id}]})
-          if s in (200, 201, 204, 409):
-              print(f"Distributed build {build_id} to group '{group_name}' (status {s})")
-          else:
-              print(f"ERROR distributing: {s} {r.get('_body','')}", file=sys.stderr); sys.exit(1)
-          PY
+          # The build gets the release notes as its What to Test text.
+          python3 scripts/ci-testflight-group.py \
+            --app "$APPSTORE_ID" --group "$TESTFLIGHT_GROUPS" --build "$BUILD_NUMBER" \
+            --notes "docs/nagram/releases/$APP_VERSION.md"
 
   release:
     name: GitHub Release
@@ -542,8 +486,9 @@ jobs:
           DSYMS="$RUNNER_TEMP/release/Nagram-$VERSION-$BUILD.DSYMs.zip"
           test -f "$IPA"
           test -f "$DSYMS"
-          NOTES="docs/nagram/releases/$VERSION.md"
-          test -f "$NOTES"
+          # How to install the build follows the notes of the version.
+          NOTES="$RUNNER_TEMP/release-notes.md"
+          { cat "docs/nagram/releases/$VERSION.md"; echo; cat docs/nagram/releases/install.md; } > "$NOTES"
           # A run that is started again finds its release and replaces the files.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" "$IPA" "$DSYMS" --clobber --repo "$GITHUB_REPOSITORY"
@@ -613,8 +558,9 @@ jobs:
           set -euo pipefail
           ls -l "$RUNNER_TEMP/channel"
           test -f "$RUNNER_TEMP/channel/Nagram-$VERSION-$BUILD.ipa"
-          NOTES="docs/nagram/releases/$VERSION.md"
-          test -f "$NOTES"
+          # How to install the build follows the notes of the version.
+          NOTES="$RUNNER_TEMP/release-notes.md"
+          { cat "docs/nagram/releases/$VERSION.md"; echo; cat docs/nagram/releases/install.md; } > "$NOTES"
           # English notes are optional and are folded under the others.
           NOTES_EN="docs/nagram/releases/$VERSION.en.md"
           if [ ! -f "$NOTES_EN" ]; then

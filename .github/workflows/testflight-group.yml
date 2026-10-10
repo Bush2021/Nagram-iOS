@@ -1,0 +1,50 @@
+name: TestFlight group check
+
+# Looks up the external TestFlight group the way a release does, without a
+# build and without changing anything in App Store Connect. Runs by hand and
+# when the lookup itself changes, on any branch.
+#
+# Uses the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64 and the
+# variable TESTFLIGHT_GROUPS of the TestFlight workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/ci-testflight-group.py
+      - .github/workflows/testflight-group.yml
+
+jobs:
+  lookup:
+    # The runner of the release, so the check has the same Python packages.
+    runs-on: xcode-27
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      ASC_KEY_ID:    ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      APPSTORE_ID: "6781000861"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: Set up App Store Connect API key
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Look up the external group
+        env:
+          TESTFLIGHT_GROUPS: ${{ vars.TESTFLIGHT_GROUPS }}
+        run: |
+          set -euo pipefail
+          : "${TESTFLIGHT_GROUPS:?the variable TESTFLIGHT_GROUPS is not set}"
+          python3 scripts/ci-testflight-group.py --app "$APPSTORE_ID" --group "$TESTFLIGHT_GROUPS"
