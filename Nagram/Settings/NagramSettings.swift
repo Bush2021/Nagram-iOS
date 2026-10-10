@@ -234,6 +234,9 @@ public final class NagramSettings {
     /// 在转发来源后显示原始消息时间
     @NagramDefault("nagram.showForwardedMessageDate", false)
     public var showForwardedMessageDate: Bool
+    /// 在气泡时间后显示消息 ID（仅群组、超级群组和频道，与 Android Nagram 一致）
+    @NagramDefault("nagram.showMessageId", false)
+    public var showMessageId: Bool
     /// 隐藏频道底部面板按钮
     @NagramDefault("nagram.hideChannelBottomButton", false)
     public var hideChannelBottomButton: Bool

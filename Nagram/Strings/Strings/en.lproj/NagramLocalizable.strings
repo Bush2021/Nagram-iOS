@@ -102,6 +102,7 @@
 
 "Nagram.SecondsInMessages" = "Show Seconds in Timestamps";
 "Nagram.ShowForwardedMessageDate" = "Show Original Time for Forwarded Messages";
+"Nagram.ShowMessageId" = "Show Message ID";
 "Nagram.ChatListMessagePreviewStyle" = "Message Preview Style";
 "Nagram.ChatListMessagePreviewStyle.three" = "Three Lines";
 "Nagram.ChatListMessagePreviewStyle.two" = "Two Lines";

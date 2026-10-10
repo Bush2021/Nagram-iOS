@@ -102,6 +102,7 @@
 
 "Nagram.SecondsInMessages" = "时间戳显示秒";
 "Nagram.ShowForwardedMessageDate" = "显示转发消息的原始时间";
+"Nagram.ShowMessageId" = "显示消息 ID";
 "Nagram.ChatListMessagePreviewStyle" = "消息预览样式";
 "Nagram.ChatListMessagePreviewStyle.three" = "三行";
 "Nagram.ChatListMessagePreviewStyle.two" = "两行";

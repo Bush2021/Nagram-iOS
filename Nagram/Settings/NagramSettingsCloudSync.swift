@@ -16,6 +16,7 @@ enum NagramSettingsSyncKeys {
         "nagram.hideRecordingButton",
         "nagram.secondsInMessages",
         "nagram.showForwardedMessageDate",
+        "nagram.showMessageId",
         "nagram.hideChannelBottomButton",
         "nagram.hideSponsoredMessages",
         "nagram.hidePrivateChatActivities",

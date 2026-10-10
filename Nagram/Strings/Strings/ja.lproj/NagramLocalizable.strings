@@ -102,6 +102,7 @@
 
 "Nagram.SecondsInMessages" = "タイムスタンプに秒を表示";
 "Nagram.ShowForwardedMessageDate" = "転送メッセージの元の時刻を表示";
+"Nagram.ShowMessageId" = "メッセージ ID を表示";
 "Nagram.ChatListMessagePreviewStyle" = "メッセージプレビュー形式";
 "Nagram.ChatListMessagePreviewStyle.three" = "3行";
 "Nagram.ChatListMessagePreviewStyle.two" = "2行";

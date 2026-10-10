@@ -6,6 +6,8 @@ import TelegramStringFormatting
 import TextFormat
 import LocalizedPeerData
 import AccountContext
+// MARK: NAGRAM
+import NagramSettings
 
 public enum MessageTimestampStatusFormat {
     case full
@@ -248,6 +250,14 @@ public func stringForMessageTimestampStatus(
     } else {
         if let authorTitle = authorTitle, !authorTitle.isEmpty {
             dateText = "\(authorTitle), \(dateText)"
+        }
+    }
+    
+    // MARK: NAGRAM
+    if NagramSettings.shared.showMessageId, message.id.namespace == Namespaces.Message.Cloud, !associatedData.isForwardOptionsPreview {
+        let peerNamespace = message.id.peerId.namespace
+        if peerNamespace == Namespaces.Peer.CloudGroup || peerNamespace == Namespaces.Peer.CloudChannel {
+            dateText = "\(dateText) | \(message.id.id)"
         }
     }
     
