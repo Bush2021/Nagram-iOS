@@ -18,6 +18,8 @@ import ComponentFlow
 import SwiftUI
 import ContactsUI
 import EdgeEffect
+import UndoUI // MARK: NAGRAM
+import NagramStrings // MARK: NAGRAM
 
 private final class ContextControllerContentSourceImpl: ContextControllerContentSource {
     let controller: ViewController
@@ -250,6 +252,15 @@ final class ContactsControllerNode: ASDisplayNode, ASGestureRecognizerDelegate {
         
         self.contactListNode.openContactAccessPicker = {
             presentContactAccessPicker(context: context)
+        }
+        
+        // MARK: NAGRAM — 双向联系人说明
+        self.contactListNode.displayMutualContactInfo = { [weak self] in
+            guard let self else {
+                return
+            }
+            let presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
+            self.controller?.present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: ngI18n("Nagram.MutualContact.Description", presentationData.strings.baseLanguageCode), timeout: nil, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
         }
     }
     

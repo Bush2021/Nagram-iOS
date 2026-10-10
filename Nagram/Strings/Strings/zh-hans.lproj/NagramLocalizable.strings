@@ -517,3 +517,4 @@
 "Nagram.InviteLinks.FetchFailed" = "无法加载完整的额外邀请链接列表，请稍后重试。";
 "Nagram.InviteLinks.Success" = "已撤销 %@ 条额外邀请链接。";
 "Nagram.InviteLinks.PartialFailure" = "已撤销 %1$@ 条，另有 %2$@ 条撤销失败。列表正在刷新。";
+"Nagram.MutualContact.Description" = "此联系人是双向联系人。";
