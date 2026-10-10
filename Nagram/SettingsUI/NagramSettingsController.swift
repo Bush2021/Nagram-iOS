@@ -560,6 +560,148 @@ private func nagramGroups(
     }
 }
 
+// MARK: NAGRAM — 设置搜索索引：与设置页共用 nagramGroups() 这张表，每行一条，打开方式即行级 deep link；
+// 子页面内的静态设置行也各一条，打开方式是直接进子页面并定位到该行。
+public struct NagramSettingsSearchEntry {
+    public let id: String
+    public let title: String
+    public let alternate: [String]
+    public let breadcrumbs: [String]
+    public let makeController: (AccountContext) -> ViewController
+}
+
+private struct NagramSubpageSearchRows {
+    let rows: [(key: String, titleKey: String)]
+    let makeController: (AccountContext, String) -> ViewController
+}
+
+// 子页面里可搜索的行。key 必须与该子页面 entry 的 NagramSettingsFocusTag 一致。
+// 规则列表这类动态内容（正则过滤规则、Inline Bot 规则）不进索引。
+private func nagramSubpageSearchRows(parentTitleKey: String) -> NagramSubpageSearchRows? {
+    switch parentTitleKey {
+    case "Nagram.BottomBarLayout":
+        return NagramSubpageSearchRows(rows: ["TopSearch", "Visibility", "SearchStyle", "ShowLabels", "ButtonWidth", "Alignment"].map { (key: $0, titleKey: "Nagram.BottomBarLayout.\($0)") }, makeController: { context, key in
+            return nagramBottomBarSettingsController(context: context, focusOnRow: key)
+        })
+    case "Nagram.MessageMenu":
+        return NagramSubpageSearchRows(rows: NagramSettings.shared.messageMenuItemOrder.map { (key: $0.rawValue, titleKey: "Nagram.MessageMenu.Item.\($0.rawValue)") }, makeController: { context, key in
+            return nagramMessageMenuSettingsController(context: context, focusOnRow: key)
+        })
+    case "Nagram.GroupProfileSettings":
+        return NagramSubpageSearchRows(rows: NagramGroupProfileSettingItem.allCases.map { (key: $0.rawValue, titleKey: "Nagram.GroupProfileSettings.Item.\($0.rawValue)") }, makeController: { context, key in
+            return nagramGroupProfileSettingsController(context: context, focusOnRow: key)
+        })
+    case "Nagram.STTSettings":
+        return NagramSubpageSearchRows(rows: ["STTBaseURL", "STTEndpoint", "STTAPIKey", "STTModel", "STTLanguage", "STTPrompt", "STTTest"].map { (key: $0, titleKey: "Nagram.\($0)") }, makeController: { context, key in
+            return nagramSTTSettingsController(context: context, focusOnRow: key)
+        })
+    case "Nagram.TranslationLLMSettings":
+        var keys = ["TranslationLLMAPIFormat", "TranslationLLMBaseURL", "TranslationLLMEndpoint", "TranslationLLMAPIKey", "TranslationLLMModel", "TranslationLLMFetchModels", "TranslationLLMTestModel", "TranslationLLMPrompt", "TranslationLLMUseContext"]
+        if NagramSettings.shared.translationLLMAPIFormatValue == .openai {
+            keys.append("TranslationLLMTemperature")
+        }
+        return NagramSubpageSearchRows(rows: keys.map { (key: $0, titleKey: "Nagram.\($0)") }, makeController: { context, key in
+            return nagramLLMTranslationSettingsController(context: context, focusOnRow: key)
+        })
+    default:
+        return nil
+    }
+}
+
+private func nagramSearchAlternates(titleKey: String, title: String, key: String) -> [String] {
+    // 非英文界面下也能用英文标题和行 key 搜到。
+    var alternate: [String] = []
+    let englishTitle = ngI18n(titleKey, nagramFallbackLocale)
+    if englishTitle != title {
+        alternate.append(englishTitle)
+    }
+    alternate.append(key)
+    return alternate
+}
+
+private func nagramRowIsVisible(_ row: NagramRow) -> Bool {
+    switch row {
+    case let .toggle(_, _, _, isVisible):
+        return isVisible()
+    case let .input(_, _, _, _, _, isVisible):
+        return isVisible()
+    case let .slider(_, _, _, _, _, isVisible):
+        return isVisible()
+    case .toggleWithEnabled, .choice, .startupFolder, .navigation:
+        return true
+    }
+}
+
+public func nagramSettingsSearchEntries(lang: String) -> [NagramSettingsSearchEntry] {
+    let groups = nagramGroups(
+        hideCalls: { false },
+        setHideCalls: { _ in },
+        sensitiveContentConfiguration: { nil },
+        setSensitiveContentEnabled: { _ in },
+        bottomBarLayoutAction: {},
+        messageMenuAction: {},
+        regexFiltersAction: {},
+        inlineBotRulesAction: {},
+        llmTranslationSettingsAction: {},
+        sttSettingsAction: {},
+        groupProfileSettingsAction: {},
+        sessionBackupAction: {}
+    )
+
+    let rootTitle = "Nagram"
+    var entries: [NagramSettingsSearchEntry] = [
+        NagramSettingsSearchEntry(id: "nagram", title: rootTitle, alternate: [], breadcrumbs: [], makeController: { context in
+            return nagramSettingsController(context: context)
+        })
+    ]
+    for group in groups {
+        let tabTitle = ngI18n(group.tab.titleKey, lang)
+        let headerTitle = group.headerKey.map { ngI18n($0, lang) }
+        for row in group.rows where nagramRowIsVisible(row) {
+            let titleKey = nagramRowTitleKey(row)
+            let key = nagramRowDeepLinkKey(row)
+            let title = ngI18n(titleKey, lang)
+
+            var breadcrumbs = [rootTitle, tabTitle]
+            if let headerTitle, headerTitle != title {
+                breadcrumbs.append(headerTitle)
+            }
+
+            // 另外带上 Android 侧的别名。
+            let alternate = nagramSearchAlternates(titleKey: titleKey, title: title, key: key) + nagramRowDeepLinkAliases(titleKey: titleKey)
+            let deepLinkPath = "\(group.tab.deepLinkSection)?r=\(key)"
+
+            entries.append(NagramSettingsSearchEntry(
+                id: "nagram/\(group.tab.deepLinkSection)/\(key)",
+                title: title,
+                alternate: alternate,
+                breadcrumbs: breadcrumbs,
+                makeController: { context in
+                    return nagramSettingsController(context: context, deepLinkPath: deepLinkPath)
+                }
+            ))
+
+            if case .navigation = row, let subpage = nagramSubpageSearchRows(parentTitleKey: titleKey) {
+                for subRow in subpage.rows {
+                    let subTitle = ngI18n(subRow.titleKey, lang)
+                    let subKey = subRow.key
+                    let makeController = subpage.makeController
+                    entries.append(NagramSettingsSearchEntry(
+                        id: "nagram/\(group.tab.deepLinkSection)/\(key)/\(subKey)",
+                        title: subTitle,
+                        alternate: nagramSearchAlternates(titleKey: subRow.titleKey, title: subTitle, key: subKey),
+                        breadcrumbs: [rootTitle, tabTitle, title],
+                        makeController: { context in
+                            return makeController(context, subKey)
+                        }
+                    ))
+                }
+            }
+        }
+    }
+    return entries
+}
+
 private final class NagramSettingsArguments {
     let toggle: (Int, Bool) -> Void
     let disclosureAction: (Int) -> Void
