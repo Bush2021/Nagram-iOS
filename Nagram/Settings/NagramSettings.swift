@@ -252,6 +252,9 @@ public final class NagramSettings {
     /// 通话前确认（默认关 = 保持原生无确认）
     @NagramDefault("nagram.confirmCalls", false)
     public var confirmCalls: Bool
+    /// 取消消息置顶前确认，含消息菜单的取消置顶和取消所有置顶（默认关 = 保持原生行为）
+    @NagramDefault("nagram.confirmUnpin", false)
+    public var confirmUnpin: Bool
     /// 资料页显示数据中心 DC
     @NagramDefault("nagram.showDC", false)
     public var showDC: Bool

@@ -228,6 +228,8 @@ private func nagramRowDeepLinkAliases(titleKey: String) -> [String] {
         return ["HidePhone", "hidePhoneInSettings"]
     case "Nagram.ConfirmCalls":
         return ["AskBeforeCalling", "ConfirmCalls"]
+    case "Nagram.ConfirmUnpin":
+        return ["ConfirmUnpin", "AskBeforeUnpin", "UnpinConfirmation"]
     case "Nagram.DisableFiltering":
         return ["DisableFiltering"]
     case "Nagram.SkipSensitiveContentWarning":
@@ -483,6 +485,7 @@ private func nagramGroups(
         ]),
         NagramGroup(tab: .chat, headerKey: "Nagram.Section.MessageMenu", footerKey: nil, rows: [
             .navigation(titleKey: "Nagram.MessageMenu", action: messageMenuAction),
+            .toggle(titleKey: "Nagram.ConfirmUnpin", get: { NagramSettings.shared.confirmUnpin }, set: { NagramSettings.shared.confirmUnpin = $0 }),
         ]),
         NagramGroup(tab: .chat, headerKey: "Nagram.Section.Filtering", footerKey: "Nagram.RegexFilters.Main.Footer", rows: [
             .toggle(titleKey: "Nagram.RegexFilters.GlobalEnabled", get: { NagramSettings.shared.regexFiltersEnabled }, set: { NagramSettings.shared.regexFiltersEnabled = $0 }),

@@ -518,3 +518,5 @@
 "Nagram.InviteLinks.Success" = "已撤销 %@ 条额外邀请链接。";
 "Nagram.InviteLinks.PartialFailure" = "已撤销 %1$@ 条，另有 %2$@ 条撤销失败。列表正在刷新。";
 "Nagram.MutualContact.Description" = "此联系人是双向联系人。";
+"Nagram.UnpinAllMessagesAlert" = "要取消所有消息的置顶吗？";
+"Nagram.ConfirmUnpin" = "取消置顶前确认";

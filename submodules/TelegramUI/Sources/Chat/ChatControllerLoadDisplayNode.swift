@@ -81,6 +81,7 @@ import TextNodeWithEntities
 // MARK: NAGRAM
 import NagramSettings
 import NagramSettingsSignal
+import NagramStrings
 import EntityKeyboard
 import ChatTitleView
 import EmojiStatusComponent
@@ -3512,7 +3513,8 @@ extension ChatControllerImpl {
                             }
                         }
                     }
-                    if askForConfirmation {
+                    // MARK: NAGRAM - optionally confirm the message menu's Unpin too (askForConfirmation == false).
+                    if askForConfirmation || NagramSettings.shared.confirmUnpin {
                         strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: nil, text: strongSelf.presentationData.strings.Conversation_UnpinMessageAlert, actions: [TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Conversation_Unpin, action: {
                             action()
                         }), TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_Cancel, action: {})], actionLayout: .vertical), in: .window(.root))
@@ -3592,6 +3594,17 @@ extension ChatControllerImpl {
                 if strongSelf.canManagePin() {
                     let count = strongSelf.presentationInterfaceState.pinnedMessage?.totalCount ?? 1
                     
+                    // MARK: NAGRAM - optionally confirm before unpinning all messages.
+                    if NagramSettings.shared.confirmUnpin {
+                        strongSelf.present(textAlertController(context: strongSelf.context, updatedPresentationData: strongSelf.updatedPresentationData, title: nil, text: ngI18n("Nagram.UnpinAllMessagesAlert", strongSelf.presentationData.strings.baseLanguageCode), actions: [TextAlertAction(type: .genericAction, title: strongSelf.presentationData.strings.Chat_PanelUnpinAllMessages, action: {
+                            guard let strongSelf = self else {
+                                return
+                            }
+                            strongSelf.requestedUnpinAllMessages?(count, topPinnedMessage.topMessageId)
+                            strongSelf.dismiss()
+                        }), TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_Cancel, action: {})], actionLayout: .vertical), in: .window(.root))
+                        return
+                    }
                     strongSelf.requestedUnpinAllMessages?(count, topPinnedMessage.topMessageId)
                     strongSelf.dismiss()
                 } else {

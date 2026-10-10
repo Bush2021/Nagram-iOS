@@ -518,3 +518,5 @@
 "Nagram.InviteLinks.Success" = "已撤銷 %@ 條額外邀請連結。";
 "Nagram.InviteLinks.PartialFailure" = "已撤銷 %1$@ 條，另有 %2$@ 條撤銷失敗。列表正在重新整理。";
 "Nagram.MutualContact.Description" = "此聯絡人是雙向聯絡人。";
+"Nagram.UnpinAllMessagesAlert" = "要取消所有訊息的置頂嗎？";
+"Nagram.ConfirmUnpin" = "取消置頂前確認";
