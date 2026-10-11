@@ -191,7 +191,10 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                                                                                      -TGPhotoCropCornerControlSize.height / 2,
                                                                                      TGPhotoCropCornerControlSize.width,
                                                                                      TGPhotoCropCornerControlSize.height)];
-        _topLeftCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, -16, -16, -16);
+        // MARK: NAGRAM
+        // A corner's touch area grows only outwards. Growing it along the sides as well made a grab
+        // of a side within 38pt of a corner drag the corner, which also moves the adjacent side.
+        _topLeftCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, -16, 0, 0);
         [self addSubview:_topLeftCornerControl];
         
         _topRightCornerControl = [[TGPhotoCropControl alloc] initWithFrame:CGRectMake(frame.size.width - TGPhotoCropCornerControlSize.width / 2,
@@ -199,7 +202,7 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                                                                                       TGPhotoCropCornerControlSize.width,
                                                                                       TGPhotoCropCornerControlSize.height)];
         _topRightCornerControl.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
-        _topRightCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, -16, -16, -16);
+        _topRightCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, 0, 0, -16);
         [self addSubview:_topRightCornerControl];
         
         _bottomLeftCornerControl = [[TGPhotoCropControl alloc] initWithFrame:CGRectMake(-TGPhotoCropCornerControlSize.width / 2,
@@ -207,7 +210,7 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                                                                                         TGPhotoCropCornerControlSize.width,
                                                                                         TGPhotoCropCornerControlSize.height)];
         _bottomLeftCornerControl.autoresizingMask = UIViewAutoresizingFlexibleTopMargin;
-        _bottomLeftCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, -16, -16, -16);
+        _bottomLeftCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(0, -16, -16, 0);
         [self addSubview:_bottomLeftCornerControl];
         
         _bottomRightCornerControl = [[TGPhotoCropControl alloc] initWithFrame:CGRectMake(frame.size.width - TGPhotoCropCornerControlSize.width / 2,
@@ -215,7 +218,7 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                                                                                          TGPhotoCropCornerControlSize.width,
                                                                                          TGPhotoCropCornerControlSize.height)];
         _bottomRightCornerControl.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin;
-        _bottomRightCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(-16, -16, -16, -16);
+        _bottomRightCornerControl.hitTestEdgeInsets = UIEdgeInsetsMake(0, 0, -16, -16);
         [self addSubview:_bottomRightCornerControl];
         
         for (UIView *view in self.subviews)

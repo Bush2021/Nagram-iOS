@@ -26,6 +26,8 @@
 - (void)setContentRotation:(CGFloat)contentRotation maximize:(bool)maximize resetting:(bool)resetting;
 - (void)setContentMirrored:(bool)mirrored;
 - (void)translateContentViewWithOffset:(CGPoint)offset;
+// MARK: NAGRAM
+- (bool)contentCoversBounds;
 
 - (UIView *)setSnapshotViewEnabled:(bool)enabled;
 - (void)setPaintingImage:(UIImage *)image;

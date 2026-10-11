@@ -410,20 +410,82 @@ const CGFloat TGPhotoCropViewOverscreenSize = 1000;
 {
     _cropAreaChanged = true;
     
-    _areaView.frame = [self _cappedAreaViewRectWithRect:_areaView.frame];
-    
-    CGPoint translationOffset = CGPointMake(_previousAreaFrame.origin.x - _areaView.frame.origin.x,
-                                            _previousAreaFrame.origin.y - _areaView.frame.origin.y);
-    
-    [_scrollView translateContentViewWithOffset:translationOffset];
-    _previousAreaFrame = _areaView.frame;
-    
-    _scrollView.frame = _areaView.frame;
-    [_scrollView fitContentInsideBoundsAllowScale:true animated:false completion:nil];
+    // MARK: NAGRAM
+    // A dragged side stops at the photo's edge. Growing the area past it used to scale the photo up
+    // to cover the area, which pushed the photo out past the other sides and did not undo itself
+    // when the side was dragged back.
+    CGRect startFrame = _previousAreaFrame;
+    CGRect targetFrame = [self _cappedAreaViewRectWithRect:_areaView.frame];
+    if ([_scrollView contentCoversBounds])
+    {
+        if (_areaView.lockAspectRatio)
+        {
+            [self _moveAreaFrameWithinContentFrom:startFrame to:targetFrame];
+        }
+        else
+        {
+            CGRect horizontalFrame = CGRectMake(targetFrame.origin.x, startFrame.origin.y, targetFrame.size.width, startFrame.size.height);
+            CGRect reachedFrame = [self _moveAreaFrameWithinContentFrom:startFrame to:horizontalFrame];
+            CGRect verticalFrame = CGRectMake(reachedFrame.origin.x, targetFrame.origin.y, reachedFrame.size.width, targetFrame.size.height);
+            [self _moveAreaFrameWithinContentFrom:reachedFrame to:verticalFrame];
+        }
+    }
+    else
+    {
+        [self _setAreaFrameKeepingContentInPlace:targetFrame];
+        [_scrollView fitContentInsideBoundsAllowScale:true animated:false completion:nil];
+    }
     
     [self _layoutRotationView];
     
     [self _layoutOverlayViewsWithFrame:_areaView.frame animated:false];
+}
+
+// MARK: NAGRAM
+- (void)_setAreaFrameKeepingContentInPlace:(CGRect)frame
+{
+    CGPoint translationOffset = CGPointMake(_previousAreaFrame.origin.x - frame.origin.x,
+                                            _previousAreaFrame.origin.y - frame.origin.y);
+    
+    [_scrollView translateContentViewWithOffset:translationOffset];
+    _previousAreaFrame = frame;
+    
+    _areaView.frame = frame;
+    _scrollView.frame = frame;
+}
+
+// MARK: NAGRAM
+// Moves the area from a frame the photo covers towards another one, as far as the photo still
+// covers it, and returns the frame it reached.
+- (CGRect)_moveAreaFrameWithinContentFrom:(CGRect)fromFrame to:(CGRect)toFrame
+{
+    CGRect (^frameAt)(CGFloat) = ^CGRect(CGFloat progress)
+    {
+        return CGRectMake(fromFrame.origin.x + (toFrame.origin.x - fromFrame.origin.x) * progress,
+                          fromFrame.origin.y + (toFrame.origin.y - fromFrame.origin.y) * progress,
+                          fromFrame.size.width + (toFrame.size.width - fromFrame.size.width) * progress,
+                          fromFrame.size.height + (toFrame.size.height - fromFrame.size.height) * progress);
+    };
+    
+    [self _setAreaFrameKeepingContentInPlace:toFrame];
+    if ([_scrollView contentCoversBounds])
+        return toFrame;
+    
+    CGFloat covered = 0.0f;
+    CGFloat uncovered = 1.0f;
+    for (NSInteger i = 0; i < 8; i++)
+    {
+        CGFloat progress = (covered + uncovered) / 2.0f;
+        [self _setAreaFrameKeepingContentInPlace:frameAt(progress)];
+        if ([_scrollView contentCoversBounds])
+            covered = progress;
+        else
+            uncovered = progress;
+    }
+    
+    CGRect reachedFrame = frameAt(covered);
+    [self _setAreaFrameKeepingContentInPlace:reachedFrame];
+    return reachedFrame;
 }
 
 - (CGRect)_cappedAreaViewRectWithRect:(CGRect)cropRect
