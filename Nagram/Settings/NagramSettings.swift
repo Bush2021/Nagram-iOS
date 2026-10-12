@@ -620,8 +620,14 @@ private func nagramTranslationLLMURL(baseURLString: String, endpoint: String, de
         endpointPath = String(endpointPath.dropFirst(3))
     }
 
-    components.percentEncodedPath = basePath + endpointPath
-    components.percentEncodedQuery = nil
+    // The endpoint is typed by the user, and the percentEncodedPath setter traps on anything that
+    // is not a valid encoded path (a space, a "?query", non-ASCII). Take the path from a parse
+    // instead: its getter only ever returns a valid one.
+    guard let endpointComponents = URLComponents(string: endpointPath), endpointComponents.host == nil else {
+        return nil
+    }
+    components.percentEncodedPath = basePath + endpointComponents.percentEncodedPath
+    components.percentEncodedQuery = endpointComponents.percentEncodedQuery
     components.fragment = nil
     return components.url
 }
