@@ -230,6 +230,21 @@ typedef struct {
     return CGRectContainsRect(CGRectInset(contentRect, -0.05f, -0.05f), boundsRect);
 }
 
+// MARK: NAGRAM
+- (void)scaleContentBy:(CGFloat)ratio aroundPoint:(CGPoint)point
+{
+    CGPoint scaleCenter = [self convertPoint:point toView:_wrapperView];
+    CGPoint delta = CGPointMake(scaleCenter.x - _wrapperView.bounds.size.width / 2,
+                                scaleCenter.y - _wrapperView.bounds.size.height / 2);
+    
+    CATransform3D transform = CATransform3DTranslate(_wrapperView.layer.transform, delta.x, delta.y, 0.0f);
+    transform = CATransform3DScale(transform, ratio, ratio, 1.0f);
+    transform = CATransform3DTranslate(transform, -delta.x, -delta.y, 0.0f);
+    
+    _wrapperView.layer.transform = transform;
+    _snapshotView.superview.layer.transform = transform;
+}
+
 - (void)fitContentInsideBoundsAllowScale:(bool)allowScale animated:(bool)animated completion:(void (^)(void))completion
 {
     [self fitContentInsideBoundsAllowScale:allowScale maximize:false animated:animated completion:completion];

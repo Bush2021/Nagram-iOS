@@ -28,6 +28,7 @@
 - (void)translateContentViewWithOffset:(CGPoint)offset;
 // MARK: NAGRAM
 - (bool)contentCoversBounds;
+- (void)scaleContentBy:(CGFloat)ratio aroundPoint:(CGPoint)point;
 
 - (UIView *)setSnapshotViewEnabled:(bool)enabled;
 - (void)setPaintingImage:(UIImage *)image;

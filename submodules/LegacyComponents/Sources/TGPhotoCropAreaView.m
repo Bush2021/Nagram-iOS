@@ -71,6 +71,8 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                 return;
 
             strongSelf->_isTracking = true;
+            // MARK: NAGRAM
+            strongSelf->_trackingEdges = [strongSelf edgesMovedByControl:sender];
         
             if (strongSelf.didBeginEditing != nil)
                 strongSelf.didBeginEditing();
@@ -107,6 +109,8 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
                 return;
             
             strongSelf->_isTracking = false;
+            // MARK: NAGRAM
+            strongSelf->_trackingEdges = UIRectEdgeNone;
             
             if (strongSelf.didEndEditing != nil)
                 strongSelf.didEndEditing();
@@ -251,6 +255,28 @@ const CGFloat TGPhotoCropEdgeControlSize = 44;
 - (bool)isTracking
 {
     return _isTracking;
+}
+
+// MARK: NAGRAM
+- (UIRectEdge)edgesMovedByControl:(TGPhotoCropControl *)control
+{
+    if (control == _topLeftCornerControl)
+        return UIRectEdgeTop | UIRectEdgeLeft;
+    if (control == _topRightCornerControl)
+        return UIRectEdgeTop | UIRectEdgeRight;
+    if (control == _bottomLeftCornerControl)
+        return UIRectEdgeBottom | UIRectEdgeLeft;
+    if (control == _bottomRightCornerControl)
+        return UIRectEdgeBottom | UIRectEdgeRight;
+    if (control == _topEdgeControl)
+        return UIRectEdgeTop;
+    if (control == _leftEdgeControl)
+        return UIRectEdgeLeft;
+    if (control == _bottomEdgeControl)
+        return UIRectEdgeBottom;
+    if (control == _rightEdgeControl)
+        return UIRectEdgeRight;
+    return UIRectEdgeNone;
 }
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)__unused event
