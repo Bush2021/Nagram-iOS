@@ -4,7 +4,8 @@ name: TestFlight (Nagram)
 # publishes only when requested. A push to main is a test of the same build:
 # nothing is published, the run keeps the IPA, without its signature, as the
 # artifact Nagram-unsigned-<build number> and posts it to the assets channel
-# with the commits of the push.
+# with the commits of the push. That test is skipped while release is at the
+# same commit, whose own run builds it.
 # Runs on GitHub-hosted xcode-27 (Apple Silicon, macOS 27, iOS 27 SDK).
 #
 # Required repository secrets:
@@ -50,7 +51,36 @@ concurrency:
   cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
+  # A push that moves main and release to the same commit starts two runs of
+  # the same build. The run of release publishes it, so the test of main is
+  # skipped. A release pushed after its commit was tested on main builds again.
+  gate:
+    name: Skip the test of a commit that is being released
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - name: Compare with the release branch
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BUILD=true
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            RELEASE="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/release" --jq .object.sha)"
+            if [ "$RELEASE" = "$GITHUB_SHA" ]; then
+              echo "::notice::release is at $GITHUB_SHA too, its run builds and publishes this commit."
+              BUILD=false
+            fi
+          fi
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
   build-upload:
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: xcode-27
     timeout-minutes: 180
     outputs:
