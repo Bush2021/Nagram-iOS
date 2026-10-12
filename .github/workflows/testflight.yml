@@ -16,7 +16,10 @@ name: TestFlight (Nagram)
 #   DIST_CERT_PASSWORD                  - password for that .p12
 #
 # The notes in docs/nagram/releases/<app version>.md are the What to Test text
-# of a build that is distributed to the external group.
+# of a build that is distributed to the external group. They cover one build:
+# what changed since the previous release, rewritten for every release. The
+# notes of the earlier builds stay in their GitHub releases, which is where
+# the notes of an App Store version are gathered from.
 #
 # A build that goes to TestFlight is also published as the GitHub release
 # v<app version>-<build number> and posted to the Telegram channels, with the
@@ -89,6 +92,13 @@ jobs:
             exit 1
           fi
           test -f docs/nagram/releases/install.md
+          # The notes are rewritten for every release, so notes that are still
+          # those of the previous release were forgotten.
+          PREVIOUS="$(git for-each-ref --merged HEAD --no-contains HEAD --sort=-creatordate --count=1 --format='%(refname:short)' 'refs/tags/v*')"
+          if [ -n "$PREVIOUS" ] && git diff --quiet "$PREVIOUS" HEAD -- "$NOTES"; then
+            echo "::error::$NOTES is unchanged since $PREVIOUS, replace it with what changed since that release."
+            exit 1
+          fi
           # The same notes become the What to Test text of the build, which
           # has a limit: this is where notes that are too long are found.
           python3 scripts/ci-testflight-group.py --notes "$NOTES" --print-notes
