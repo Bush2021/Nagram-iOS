@@ -1,0 +1,67 @@
+name: Build check
+
+# Throwaway compile check for feat/share-extension-hd-photos. Unsigned
+# simulator build as documented in docs/build.md; publishes nothing.
+
+on:
+  push:
+    branches: [ "ci/share-extension-hd-photos" ]
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select pinned Xcode
+        id: xcode
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          test -d "$XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+          echo "build=$(xcodebuild -version | awk '/^Build version / {print $3}')" >> "$GITHUB_OUTPUT"
+
+      - name: Install Metal toolchain
+        run: |
+          xcodebuild -downloadComponent MetalToolchain
+          xcrun --find metal
+
+      - name: Cache Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: bazel-disk-sim-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock') }}
+          restore-keys: bazel-disk-sim-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.build }}-
+
+      # Same Xcode 27 compatibility flags as the TestFlight workflow.
+      - name: Write local.bazelrc
+        run: |
+          cat > local.bazelrc <<'RC'
+          build --features=no_include_scanning
+          build --host_features=no_include_scanning
+          build --copt=-Wno-error
+          build --cxxopt=-Wno-error
+          build --objccopt=-Wno-error
+          build --per_file_copt=.*\.m$@-Wno-error=deprecated-declarations
+          build --per_file_copt=.*\.mm$@-Wno-error=deprecated-declarations
+          build --@build_bazel_rules_swift//swift:copt=-no-warnings-as-errors
+          RC
+
+      - name: Build (debug_sim_arm64, unsigned)
+        run: |
+          set -euo pipefail
+          python3 build-system/Make/Make.py --overrideXcodeVersion \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --xcodeManagedCodesigning --buildNumber=1 \
+            --configuration=debug_sim_arm64 --continueOnError \
+            --disableProvisioningProfiles --disableExtensions
