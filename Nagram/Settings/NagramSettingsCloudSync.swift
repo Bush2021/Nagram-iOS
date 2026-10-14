@@ -104,6 +104,9 @@ enum NagramSettingsSyncKeys {
         "nagram.messageMenu.order",
         "nagram.messageMenu.disabled",
         "nagram.messageMenu.enabledDefaultDisabled",
+        "nagram.textStyleMenu.order",
+        "nagram.textStyleMenu.enabled",
+        "nagram.textStyleMenu.position",
         "nagram.regexFilters.rules",
         "nagram.regexFilters.disabledPeerIds"
     ]

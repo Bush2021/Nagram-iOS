@@ -390,6 +390,7 @@ private func nagramGroups(
     setSensitiveContentEnabled: @escaping (Bool) -> Void,
     bottomBarLayoutAction: @escaping () -> Void,
     messageMenuAction: @escaping () -> Void,
+    textStyleMenuAction: @escaping () -> Void,
     regexFiltersAction: @escaping () -> Void,
     inlineBotRulesAction: @escaping () -> Void,
     llmTranslationSettingsAction: @escaping () -> Void,
@@ -511,6 +512,7 @@ private func nagramGroups(
             .toggle(titleKey: "Nagram.DisableSendAsButton", get: { NagramSettings.shared.disableSendAsButton }, set: { NagramSettings.shared.disableSendAsButton = $0 }),
             .toggle(titleKey: "Nagram.SendWithReturnKey", get: { NagramSettings.shared.sendWithReturnKey }, set: { NagramSettings.shared.sendWithReturnKey = $0 }),
             .toggle(titleKey: "Nagram.TextStyleToolbar", get: { NagramSettings.shared.showTextStyleToolbar }, set: { NagramSettings.shared.showTextStyleToolbar = $0 }),
+            .navigation(titleKey: "Nagram.TextStyleMenu", action: textStyleMenuAction),
             .toggle(titleKey: "Nagram.HideRecordingButton", get: { NagramSettings.shared.hideRecordingButton }, set: { NagramSettings.shared.hideRecordingButton = $0 }),
         ]),
         NagramGroup(tab: .chat, headerKey: "Nagram.Section.Gesture", footerKey: "Nagram.Section.Gesture.Footer", rows: [
@@ -646,6 +648,7 @@ public func nagramSettingsSearchEntries(lang: String) -> [NagramSettingsSearchEn
         setSensitiveContentEnabled: { _ in },
         bottomBarLayoutAction: {},
         messageMenuAction: {},
+        textStyleMenuAction: {},
         regexFiltersAction: {},
         inlineBotRulesAction: {},
         llmTranslationSettingsAction: {},
@@ -886,6 +889,8 @@ public func nagramSettingsController(context: AccountContext, deepLinkPath: Stri
         pushControllerImpl?(nagramBottomBarSettingsController(context: context))
     }, messageMenuAction: {
         pushControllerImpl?(nagramMessageMenuSettingsController(context: context))
+    }, textStyleMenuAction: {
+        pushControllerImpl?(nagramTextStyleMenuSettingsController(context: context))
     }, regexFiltersAction: {
         pushControllerImpl?(nagramRegexFilterSettingsController(context: context))
     }, inlineBotRulesAction: {
