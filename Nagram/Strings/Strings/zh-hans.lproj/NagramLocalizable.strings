@@ -122,6 +122,10 @@
 "Nagram.DisableSendAsButton" = "隐藏「以频道身份发送」";
 "Nagram.SendWithReturnKey" = "回车键发送";
 "Nagram.TextStyleToolbar" = "文字样式工具栏";
+"Nagram.TextStyleToolbar.off" = "关闭";
+"Nagram.TextStyleToolbar.panel" = "键盘面板";
+"Nagram.TextStyleToolbar.bar" = "常驻格式条";
+"Nagram.TextStyleToolbar.both" = "面板 + 常驻条";
 "Nagram.TextStyleMenu" = "选中文字菜单";
 "Nagram.TextStyleMenu.PositionHeader" = "插入位置";
 "Nagram.TextStyleMenu.Position.first" = "最前面";

@@ -122,6 +122,10 @@
 "Nagram.DisableSendAsButton" = "Hide \"Send as Channel\" Button";
 "Nagram.SendWithReturnKey" = "Send with Return Key";
 "Nagram.TextStyleToolbar" = "Text Style Toolbar";
+"Nagram.TextStyleToolbar.off" = "Off";
+"Nagram.TextStyleToolbar.panel" = "Keyboard Panel";
+"Nagram.TextStyleToolbar.bar" = "Persistent Bar";
+"Nagram.TextStyleToolbar.both" = "Panel + Bar";
 "Nagram.TextStyleMenu" = "Selection Menu";
 "Nagram.TextStyleMenu.PositionHeader" = "Insert Position";
 "Nagram.TextStyleMenu.Position.first" = "At the Beginning";

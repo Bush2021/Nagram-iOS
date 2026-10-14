@@ -122,6 +122,10 @@
 "Nagram.DisableSendAsButton" = "「チャンネルとして送信」ボタンを非表示";
 "Nagram.SendWithReturnKey" = "Returnキーで送信";
 "Nagram.TextStyleToolbar" = "文字スタイルツールバー";
+"Nagram.TextStyleToolbar.off" = "オフ";
+"Nagram.TextStyleToolbar.panel" = "キーボードパネル";
+"Nagram.TextStyleToolbar.bar" = "常時表示バー";
+"Nagram.TextStyleToolbar.both" = "パネル + バー";
 "Nagram.TextStyleMenu" = "選択メニュー";
 "Nagram.TextStyleMenu.PositionHeader" = "挿入位置";
 "Nagram.TextStyleMenu.Position.first" = "先頭";

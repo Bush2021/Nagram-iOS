@@ -122,6 +122,10 @@
 "Nagram.DisableSendAsButton" = "隱藏「以頻道身分傳送」";
 "Nagram.SendWithReturnKey" = "Enter 鍵傳送";
 "Nagram.TextStyleToolbar" = "文字樣式工具列";
+"Nagram.TextStyleToolbar.off" = "關閉";
+"Nagram.TextStyleToolbar.panel" = "鍵盤面板";
+"Nagram.TextStyleToolbar.bar" = "常駐格式列";
+"Nagram.TextStyleToolbar.both" = "面板 + 常駐列";
 "Nagram.TextStyleMenu" = "選取文字選單";
 "Nagram.TextStyleMenu.PositionHeader" = "插入位置";
 "Nagram.TextStyleMenu.Position.first" = "最前面";

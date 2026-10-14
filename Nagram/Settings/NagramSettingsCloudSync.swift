@@ -71,6 +71,7 @@ enum NagramSettingsSyncKeys {
         "nagram.sttPrompt",
         "nagram.sendWithReturnKey",
         "nagram.showTextStyleToolbar",
+        "nagram.textStyleToolbarMode",
         "nagram.enablePanguOnSending",
         "nagram.enablePanguOnEditing",
         "nagram.enablePanguOnReceiving",
