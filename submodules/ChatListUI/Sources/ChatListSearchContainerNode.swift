@@ -247,8 +247,27 @@ public final class ChatListSearchContainerNode: SearchDisplayControllerContentNo
             let _ = context.sharedContext.openUserGeneratedUrl(context: context, peerId: nil, url: url, webpage: nil, concealed: false, forceConcealed: false, skipUrlAuth: false, skipConcealedAlert: false, forceDark: false, present: { c in
                 present(c, nil)
             }, openResolved: { [weak self] resolved in
-                context.sharedContext.openResolvedUrl(resolved, context: context, urlContext: .generic, navigationController: navigationController, forceExternal: false, forceUpdate: false, openPeer: { peerId, navigation in
-                    
+                context.sharedContext.openResolvedUrl(resolved, context: context, urlContext: .generic, navigationController: navigationController, forceExternal: false, forceUpdate: false, openPeer: { peer, navigation in
+                    // MARK: NAGRAM — 搜索框粘贴的链接解析到会话或消息时要真的打开它；上游这里是空实现。
+                    guard let navigationController else {
+                        return
+                    }
+                    switch navigation {
+                    case let .chat(inputState, subject, peekData):
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), subject: subject, updateTextInputState: inputState, activateInput: inputState != nil ? .text : nil, peekData: peekData))
+                    case .info:
+                        if peer.restrictionText(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) == nil, let infoController = context.sharedContext.makePeerInfoController(context: context, updatedPresentationData: nil, peer: peer, mode: .generic, avatarInitiallyExpanded: false, fromChat: false, requestsContext: nil) {
+                            navigationController.pushViewController(infoController)
+                        }
+                    case let .withBotStartPayload(startPayload):
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), botStart: startPayload))
+                    case let .withAttachBot(attachBotStart):
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), attachBotStart: attachBotStart))
+                    case let .withBotApp(botAppStart):
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer), botAppStart: botAppStart))
+                    case .default:
+                        context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: context, chatLocation: .peer(peer)))
+                    }
                 },
                 sendFile: nil,
                 sendSticker: nil,

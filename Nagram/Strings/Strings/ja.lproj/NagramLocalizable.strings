@@ -536,3 +536,7 @@ iCloud キーチェーン同期を有効にすると、バックアップは他�
 "Nagram.MutualContact.Description" = "この連絡先は相互連絡先です。";
 "Nagram.UnpinAllMessagesAlert" = "すべてのメッセージのピン留めを解除しますか？";
 "Nagram.ConfirmUnpin" = "ピン留め解除前に確認";
+"Nagram.SearchLink.Header" = "リンク";
+"Nagram.SearchLink.Open" = "リンクを開く";
+"Nagram.SearchLink.OpenMessage" = "メッセージへ移動";
+"Nagram.SearchLink.OpenInvite" = "招待リンクを開く";

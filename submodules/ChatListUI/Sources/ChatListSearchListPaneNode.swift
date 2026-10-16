@@ -40,6 +40,9 @@ import ButtonComponent
 import BundleIconComponent
 import AnimatedTextComponent
 import TextFormat
+// MARK: NAGRAM
+import NagramSearchLink
+import NagramStrings
 
 private func isIncludedCommunityContainer(_ peer: EnginePeer?, filter: ChatListNodePeersFilter) -> Bool {
     if filter.contains(.includeCommunities), case .community = peer {
@@ -405,6 +408,7 @@ public enum ChatListSearchEntryStableId: Hashable {
     case messagePlaceholder(Int32)
     case emptyMessagesFooter
     case addContact
+    case nagramSearchLink // MARK: NAGRAM
 }
 
 public enum ChatListSearchSectionExpandType {
@@ -469,9 +473,13 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
     case messagePlaceholder(Int32, ChatListPresentationData, TelegramSearchPeersScope)
     case emptyMessagesFooter(ChatListPresentationData, TelegramSearchPeersScope, String?)
     case addContact(String, PresentationTheme, PresentationStrings)
+    // MARK: NAGRAM — 搜索词是 Telegram 链接时置顶的「打开链接」入口。
+    case nagramSearchLink(NagramSearchLink, PresentationTheme, PresentationStrings)
 
     public var stableId: ChatListSearchEntryStableId {
         switch self {
+        case .nagramSearchLink:
+            return .nagramSearchLink
         case let .topic(_, threadInfo, _, _, _, _):
             return .threadId(threadInfo.id)
         case let .recentlySearchedPeer(peer, _, _, _, _, _, _, _, _, _):
@@ -495,6 +503,12 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
 
     public static func ==(lhs: ChatListSearchEntry, rhs: ChatListSearchEntry) -> Bool {
         switch lhs {
+        case let .nagramSearchLink(lhsLink, lhsTheme, lhsStrings):
+            if case let .nagramSearchLink(rhsLink, rhsTheme, rhsStrings) = rhs, lhsLink == rhsLink, lhsTheme === rhsTheme, lhsStrings === rhsStrings {
+                return true
+            } else {
+                return false
+            }
         case let .topic(lhsPeer, lhsThreadInfo, lhsIndex, lhsTheme, lhsStrings, lhsExpandType):
             if case let .topic(rhsPeer, rhsThreadInfo, rhsIndex, rhsTheme, rhsStrings, rhsExpandType) = rhs, lhsPeer == rhsPeer, lhsThreadInfo == rhsThreadInfo, lhsIndex == rhsIndex, lhsTheme === rhsTheme, lhsStrings === rhsStrings, lhsExpandType == rhsExpandType {
                 return true
@@ -631,7 +645,13 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
     }
 
     public static func <(lhs: ChatListSearchEntry, rhs: ChatListSearchEntry) -> Bool {
+        // MARK: NAGRAM — 链接入口排在所有结果之前。
+        if case .nagramSearchLink = rhs {
+            return false
+        }
         switch lhs {
+        case .nagramSearchLink:
+            return true
         case let .topic(_, _, lhsIndex, _, _, _):
             if case let .topic(_, _, rhsIndex, _, _, _) = rhs {
                 return lhsIndex <= rhsIndex
@@ -648,7 +668,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             }
         case let .localPeer(_, _, _, lhsIndex, _, _, _, _, _, _, _, _):
             switch rhs {
-            case .topic, .recentlySearchedPeer:
+            case .nagramSearchLink, .topic, .recentlySearchedPeer:
                 return false
             case let .localPeer(_, _, _, rhsIndex, _, _, _, _, _, _, _, _):
                 return lhsIndex <= rhsIndex
@@ -657,7 +677,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             }
         case let .adPeer(_, lhsIndex, _, _, _, _, _, _):
             switch rhs {
-            case .topic, .recentlySearchedPeer, .localPeer:
+            case .nagramSearchLink, .topic, .recentlySearchedPeer, .localPeer:
                 return false
             case let .adPeer(_, rhsIndex, _, _, _, _, _, _):
                 return lhsIndex <= rhsIndex
@@ -666,7 +686,7 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
             }
         case let .globalPeer(_, _, lhsIndex, _, _, _, _, _, _, _, _):
             switch rhs {
-            case .topic, .recentlySearchedPeer, .localPeer, .adPeer:
+            case .nagramSearchLink, .topic, .recentlySearchedPeer, .localPeer, .adPeer:
                 return false
             case let .globalPeer(_, _, rhsIndex, _, _, _, _, _, _, _, _):
                 return lhsIndex <= rhsIndex
@@ -733,6 +753,22 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
         switchMessagesFilter: @escaping (TelegramSearchPeersScope) -> Void
     ) -> ListViewItem {
         switch self {
+            // MARK: NAGRAM
+            case let .nagramSearchLink(link, theme, strings):
+                let languageCode = strings.baseLanguageCode
+                let titleKey: String
+                switch link.kind {
+                case .message:
+                    titleKey = "Nagram.SearchLink.OpenMessage"
+                case .invite:
+                    titleKey = "Nagram.SearchLink.OpenInvite"
+                case .generic:
+                    titleKey = "Nagram.SearchLink.Open"
+                }
+                let header = ChatListSearchItemHeader(type: .text(ngI18n("Nagram.SearchLink.Header", languageCode), AnyHashable("nagramSearchLink")), theme: theme, strings: strings, actionTitle: nil, action: nil)
+                return NagramSearchLinkItem(theme: theme, title: ngI18n(titleKey, languageCode), subtitle: link.displayUrl, header: header, action: {
+                    interaction.openUrl(link.url)
+                })
             case let .topic(peer, threadInfo, _, theme, strings, expandType):
                 let actionTitle: String?
                 switch expandType {
@@ -2938,12 +2974,19 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 )
             }
 
+            // MARK: NAGRAM — 只在主聊天列表的搜索里提供链接入口；选人器、话题和收藏消息里的搜索不出现。
+            var nagramSearchLinkValue: NagramSearchLink?
+            if key == .chats, case .chatList = location, peersFilter.isEmpty, requestPeerType == nil {
+                nagramSearchLinkValue = nagramSearchLink(query: finalQuery, appSpecificScheme: context.sharedContext.applicationBindings.appSpecificScheme)
+            }
+
             let resolvedMessage: Signal<EngineMessage?, NoError>
             if case .savedMessagesChats = location {
                 resolvedMessage = .single(nil)
             } else {
                 resolvedMessage = .single(nil)
-                |> then(context.sharedContext.resolveUrl(context: context, peerId: nil, url: finalQuery, skipUrlAuth: true)
+                // MARK: NAGRAM — 不带域名的消息链接补上 t.me 后再解析，才能预览出消息。
+                |> then(context.sharedContext.resolveUrl(context: context, peerId: nil, url: nagramSearchLinkValue?.resolvableUrl ?? finalQuery, skipUrlAuth: true)
                 |> mapToSignal { resolvedUrl -> Signal<EngineMessage?, NoError> in
                     if case let .channelMessage(_, messageId, _) = resolvedUrl {
                         return context.engine.messages.downloadMessage(messageId: messageId)
@@ -3012,6 +3055,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 let isSearching = foundRemotePeers.3 || foundRemoteMessages.1 || foundPublicMessages.1
                 var entries: [ChatListSearchEntry] = []
                 var index = 0
+
+                // MARK: NAGRAM — 链接入口与普通搜索结果同时展示。
+                if let nagramSearchLinkValue {
+                    entries.append(.nagramSearchLink(nagramSearchLinkValue, presentationData.theme, presentationData.strings))
+                }
 
                 for thread in allAndFoundThreads {
                     if let peer = thread.renderedPeer.peer, let threadData = thread.threadData, case let .forum(_, _, id, _, _) = thread.index {
@@ -3676,7 +3724,11 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         }, openAdInfo: { node, adPeer in
             interaction.openAdInfo(node, adPeer)
         }, openAccountFreezeInfo: {
-        }, openUrl: { _ in
+        }, openUrl: { [weak self] url in
+            // MARK: NAGRAM — 搜索链接入口的点击。
+            interaction.dismissInput()
+            interaction.openUrl(url)
+            self?.listNode?.clearHighlightAnimated(true)
         })
         chatListInteraction.isSearchMode = true
 

@@ -536,3 +536,7 @@
 "Nagram.MutualContact.Description" = "此聯絡人是雙向聯絡人。";
 "Nagram.UnpinAllMessagesAlert" = "要取消所有訊息的置頂嗎？";
 "Nagram.ConfirmUnpin" = "取消置頂前確認";
+"Nagram.SearchLink.Header" = "連結";
+"Nagram.SearchLink.Open" = "開啟連結";
+"Nagram.SearchLink.OpenMessage" = "跳至訊息";
+"Nagram.SearchLink.OpenInvite" = "開啟邀請連結";

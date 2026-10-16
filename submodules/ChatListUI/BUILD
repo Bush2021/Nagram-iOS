@@ -141,6 +141,7 @@ swift_library(
         "//Nagram/SettingsSignal:NagramSettingsSignal",
         "//Nagram/Settings:NagramSettings",
         "//Nagram/Strings:NagramStrings",
+        "//Nagram/SearchLink:NagramSearchLink",
     ],
     visibility = [
         "//visibility:public",
@@ -160,6 +161,7 @@ swift_library(
         "//submodules/TelegramStringFormatting:TelegramStringFormatting",
         "//submodules/TextFormat:TextFormat",
         "//submodules/AppBundle:AppBundle",
+        "//Nagram/SearchLink:NagramSearchLink", # MARK: NAGRAM
     ],
 )
 
