@@ -15,29 +15,33 @@ import UIKit
 import UndoUI
 
 // MARK: NAGRAM — 增强设置页 UI。
-// 顶部 3 段(通用/消息/其他)用 ItemListControllerTitle.sectionControl;段内用 section header 分层。
+// 顶部 4 段(界面/会话/消息/其他)用 ItemListControllerTitle.sectionControl;段内用 section header 分层。
 // 数据驱动:nagramGroups() 描述「tab → 段内分组(header/footer/行)」,加开关只改这张表。
 // 行类型 NagramRow:toggle(开关)/ choice(disclosure + ActionSheet 弹选,下载加速)/ slider(行内百分比滑杆,贴纸尺寸)。
 // 刷新机制:本地 updatePromise + bump()。toggle/choice 改值后调 bump() 触发列表重建(在 setter 返回之后,
 // 不在 UserDefaults.didChange 同步回调内,故无 Swift 独占访问重入崩溃);slider 拖动时本节点自显示,不 bump。
 // 文案全部走 ngI18n(key, lang) 本地化(zh-hans/en/zh-hant/ja)。
 private enum NagramTab: Int32, CaseIterable {
-    case general
-    case chat
+    case interface
+    case chats
+    case messages
     case other
 
     var titleKey: String {
         switch self {
-        case .general: return "Nagram.Tab.General"
-        case .chat: return "Nagram.Tab.Chat"
+        case .interface: return "Nagram.Tab.Interface"
+        case .chats: return "Nagram.Tab.Chats"
+        case .messages: return "Nagram.Tab.Messages"
         case .other: return "Nagram.Tab.Other"
         }
     }
 
+    // 与 desktop 的 nasettings section 同名(interface/chats/messages)。
     var deepLinkSection: String {
         switch self {
-        case .general: return "general"
-        case .chat: return "chat"
+        case .interface: return "interface"
+        case .chats: return "chats"
+        case .messages: return "messages"
         case .other: return "other"
         }
     }
@@ -295,11 +299,14 @@ private func nagramTabForDeepLinkSection(_ section: String?) -> NagramTab? {
         return nil
     }
     switch normalizedNagramDeepLinkToken(section) {
-    case "general", "g", "interface", "camera", "network":
-        return .general
-    case "chat", "chats", "c", "message", "messages", "stickers", "gesture":
-        return .chat
-    case "other", "o", "account", "a", "about", "privacy", "profile", "calls", "experimental", "e", "emoji":
+    // general/chat 是四段拆分前生成的 section,仍按原 tab 的主体内容解析;带行 key 的链接由行反查 tab。
+    case "interface", "i", "general", "g", "camera", "stories":
+        return .interface
+    case "chats", "chatlist", "folders", "gesture":
+        return .chats
+    case "messages", "message", "m", "chat", "c", "stickers", "compose", "menu", "media", "services", "rules":
+        return .messages
+    case "other", "o", "account", "a", "about", "privacy", "profile", "calls", "network", "config", "experimental", "e", "emoji":
         return .other
     default:
         return nil
@@ -348,7 +355,7 @@ private func parseNagramDeepLinkRequest(_ deepLinkPath: String?) -> NagramDeepLi
 
 private func nagramDeepLinkTarget(deepLinkPath: String?, groups: [NagramGroup]) -> NagramDeepLinkTarget {
     let request = parseNagramDeepLinkRequest(deepLinkPath)
-    var selectedTab = nagramTabForDeepLinkSection(request?.section) ?? .general
+    var selectedTab = nagramTabForDeepLinkSection(request?.section) ?? .interface
     var rowIndex: Int?
 
     let rowCandidates = [request?.row, request?.section].compactMap { value -> String? in
@@ -379,7 +386,7 @@ private func nagramDeepLinkTarget(deepLinkPath: String?, groups: [NagramGroup]) 
 private struct NagramGroup {
     let tab: NagramTab
     let headerKey: String?
-    let footerKey: String?
+    let footerKeys: [String]
     let rows: [NagramRow]
 }
 
@@ -408,21 +415,32 @@ private func nagramGroups(
         NagramSettings.shared.chatListMessagePreviewStyle = NagramChatListMessagePreviewStyle.two.rawValue
     }
     return [
-        // 通用
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.Interface", footerKey: "Nagram.GlassTransparency.Footer", rows: [
+        // 界面
+        NagramGroup(tab: .interface, headerKey: "Nagram.Section.Appearance", footerKeys: ["Nagram.GlassTransparency.Footer"], rows: [
             .navigation(titleKey: "Nagram.BottomBarLayout", action: bottomBarLayoutAction),
             .toggle(titleKey: "Nagram.HideTabBarPermissionWarnings", get: { NagramSettings.shared.hideTabBarPermissionWarnings }, set: { NagramSettings.shared.hideTabBarPermissionWarnings = $0 }),
-            .startupFolder(titleKey: "Nagram.ChatListStartupFolder"),
-            .choice(titleKey: "Nagram.ChatListFolderTabDisplayMode", prefix: "Nagram.ChatListFolderTabDisplayMode", options: ["text", "icon", "both"], current: { NagramSettings.shared.chatListFolderTabDisplayModeValue.rawValue }, set: { NagramSettings.shared.chatListFolderTabDisplayMode = $0 }),
-            .toggle(titleKey: "Nagram.ChatListFolderTabsCompact", get: { NagramSettings.shared.chatListFolderTabsCompact }, set: { NagramSettings.shared.chatListFolderTabsCompact = $0 }),
-            .toggle(titleKey: "Nagram.HideFolderUnreadCount", get: { NagramSettings.shared.hideFolderUnreadCount }, set: { NagramSettings.shared.hideFolderUnreadCount = $0 }),
-            .toggle(titleKey: "Nagram.HideAllChatsFolder", get: { NagramSettings.shared.hideAllChatsFolder }, set: { NagramSettings.shared.hideAllChatsFolder = $0 }),
-            .toggle(titleKey: "Nagram.ShowFoldersInShareSheet", get: { NagramSettings.shared.showFoldersInShareSheet }, set: { NagramSettings.shared.showFoldersInShareSheet = $0 }),
-            .toggle(titleKey: "Nagram.ChooseFolderAfterJoining", get: { NagramSettings.shared.chooseFolderAfterJoining }, set: { NagramSettings.shared.chooseFolderAfterJoining = $0 }),
-            .toggle(titleKey: "Nagram.HideSavedAndArchivedMessagesInList", get: { NagramSettings.shared.hideSavedAndArchivedMessagesInList }, set: { NagramSettings.shared.hideSavedAndArchivedMessagesInList = $0 }),
-            .toggle(titleKey: "Nagram.KeepNewChatsVisibleAtTop", get: { NagramSettings.shared.keepNewChatsVisibleAtTop }, set: { NagramSettings.shared.keepNewChatsVisibleAtTop = $0 }),
-            .toggle(titleKey: "Nagram.DisableCommunityChatGrouping", get: { NagramSettings.shared.disableCommunityChatGrouping }, set: { NagramSettings.shared.disableCommunityChatGrouping = $0 }),
-            .choice(titleKey: "Nagram.CommunityAvatarTapAction", prefix: "Nagram.CommunityAvatarTapAction", options: NagramCommunityAvatarTapAction.allCases.map { $0.rawValue }, current: { NagramSettings.shared.communityAvatarTapActionValue.rawValue }, set: { NagramSettings.shared.communityAvatarTapAction = $0 }),
+            .choice(titleKey: "Nagram.GlassTransparency", prefix: "Nagram.GlassTransparency", options: ["system", "custom"], current: { NagramSettings.shared.glassTransparencyModeValue.rawValue }, set: { NagramSettings.shared.glassTransparencyMode = $0 }),
+            .slider(titleKey: "Nagram.GlassTransparency.OverlayOpacity", minValue: 0, maxValue: 100, get: { NagramSettings.shared.glassTransparencyPercent }, set: { NagramSettings.shared.glassTransparencyPercent = $0 }, isVisible: { NagramSettings.shared.glassTransparencyModeValue == .custom }),
+            .toggle(titleKey: "Nagram.ControlHighlight", get: { NagramSettings.shared.controlHighlightEnabled }, set: { NagramSettings.shared.controlHighlightEnabled = $0 }),
+        ]),
+        NagramGroup(tab: .interface, headerKey: "Nagram.Section.OneHanded", footerKeys: ["Nagram.Section.OneHanded.Footer"], rows: [
+            .toggle(titleKey: "Nagram.OneHanded.ChatSearchFieldAtBottom", get: { NagramSettings.shared.chatSearchFieldAtBottom }, set: { NagramSettings.shared.chatSearchFieldAtBottom = $0 }),
+            .toggle(titleKey: "Nagram.OneHanded.GlobalSearchResults", get: { NagramSettings.shared.bottomUpGlobalSearchResults }, set: { NagramSettings.shared.bottomUpGlobalSearchResults = $0 }),
+            .toggle(titleKey: "Nagram.OneHanded.ChatSearchResults", get: { NagramSettings.shared.bottomUpChatSearchResults }, set: { NagramSettings.shared.bottomUpChatSearchResults = $0 }),
+        ]),
+        NagramGroup(tab: .interface, headerKey: "Nagram.Section.Stories", footerKeys: [], rows: [
+            .toggle(titleKey: "Nagram.HideStories", get: { NagramSettings.shared.hideStories }, set: { NagramSettings.shared.hideStories = $0 }),
+            .toggle(titleKey: "Nagram.HideTopStories", get: { NagramSettings.shared.hideTopStories }, set: { NagramSettings.shared.hideTopStories = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
+            .toggle(titleKey: "Nagram.DisableStoryCameraSwipe", get: { NagramSettings.shared.disableStoryCameraSwipe }, set: { NagramSettings.shared.disableStoryCameraSwipe = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
+            .toggle(titleKey: "Nagram.DisableChatAvatarStories", get: { NagramSettings.shared.disableChatAvatarStories }, set: { NagramSettings.shared.disableChatAvatarStories = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
+        ]),
+        NagramGroup(tab: .interface, headerKey: "Nagram.Section.Camera", footerKeys: ["Nagram.Section.Camera.Footer"], rows: [
+            .toggle(titleKey: "Nagram.DisableGalleryCamera", get: { NagramSettings.shared.disableGalleryCamera }, set: { NagramSettings.shared.disableGalleryCamera = $0 }),
+            .toggle(titleKey: "Nagram.DisableGalleryCameraPreview", get: { NagramSettings.shared.disableGalleryCameraPreview }, set: { NagramSettings.shared.disableGalleryCameraPreview = $0 }),
+            .choice(titleKey: "Nagram.RoundVideoCamera", prefix: "Nagram.RoundVideoCamera", options: ["front", "back"], current: { NagramSettings.shared.roundVideoCameraValue.rawValue }, set: { NagramSettings.shared.roundVideoCamera = $0 }),
+        ]),
+        // 会话
+        NagramGroup(tab: .chats, headerKey: "Nagram.Section.ChatList", footerKeys: [], rows: [
             .choice(titleKey: "Nagram.ChatListMessagePreviewStyle", prefix: "Nagram.ChatListMessagePreviewStyle", options: ["three", "two"], current: { NagramSettings.shared.chatListMessagePreviewStyleMode.rawValue }, set: { value in
                 if NagramSettings.shared.chatListCompact && value == NagramChatListMessagePreviewStyle.three.rawValue {
                     return
@@ -435,85 +453,50 @@ private func nagramGroups(
                     NagramSettings.shared.chatListMessagePreviewStyle = NagramChatListMessagePreviewStyle.two.rawValue
                 }
             }),
-            .choice(titleKey: "Nagram.GlassTransparency", prefix: "Nagram.GlassTransparency", options: ["system", "custom"], current: { NagramSettings.shared.glassTransparencyModeValue.rawValue }, set: { NagramSettings.shared.glassTransparencyMode = $0 }),
-            .slider(titleKey: "Nagram.GlassTransparency.OverlayOpacity", minValue: 0, maxValue: 100, get: { NagramSettings.shared.glassTransparencyPercent }, set: { NagramSettings.shared.glassTransparencyPercent = $0 }, isVisible: { NagramSettings.shared.glassTransparencyModeValue == .custom }),
-            .toggle(titleKey: "Nagram.ControlHighlight", get: { NagramSettings.shared.controlHighlightEnabled }, set: { NagramSettings.shared.controlHighlightEnabled = $0 }),
+            .toggle(titleKey: "Nagram.HideSavedAndArchivedMessagesInList", get: { NagramSettings.shared.hideSavedAndArchivedMessagesInList }, set: { NagramSettings.shared.hideSavedAndArchivedMessagesInList = $0 }),
+            .toggle(titleKey: "Nagram.KeepNewChatsVisibleAtTop", get: { NagramSettings.shared.keepNewChatsVisibleAtTop }, set: { NagramSettings.shared.keepNewChatsVisibleAtTop = $0 }),
+            .toggle(titleKey: "Nagram.DisableCommunityChatGrouping", get: { NagramSettings.shared.disableCommunityChatGrouping }, set: { NagramSettings.shared.disableCommunityChatGrouping = $0 }),
+            .choice(titleKey: "Nagram.CommunityAvatarTapAction", prefix: "Nagram.CommunityAvatarTapAction", options: NagramCommunityAvatarTapAction.allCases.map { $0.rawValue }, current: { NagramSettings.shared.communityAvatarTapActionValue.rawValue }, set: { NagramSettings.shared.communityAvatarTapAction = $0 }),
+            .choice(titleKey: "Nagram.ChatListSwipeAction", prefix: "Nagram.ChatListSwipeAction", options: ["both", "switch", "quick", "none"], current: { NagramSettings.shared.chatListSwipeActionMode.rawValue }, set: { NagramSettings.shared.chatListSwipeAction = $0 }),
+            .toggle(titleKey: "Nagram.OpenArchiveOnPull", get: { NagramSettings.shared.openArchiveOnPull }, set: { NagramSettings.shared.openArchiveOnPull = $0 }),
         ]),
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.OneHanded", footerKey: "Nagram.Section.OneHanded.Footer", rows: [
-            .toggle(titleKey: "Nagram.OneHanded.ChatSearchFieldAtBottom", get: { NagramSettings.shared.chatSearchFieldAtBottom }, set: { NagramSettings.shared.chatSearchFieldAtBottom = $0 }),
-            .toggle(titleKey: "Nagram.OneHanded.GlobalSearchResults", get: { NagramSettings.shared.bottomUpGlobalSearchResults }, set: { NagramSettings.shared.bottomUpGlobalSearchResults = $0 }),
-            .toggle(titleKey: "Nagram.OneHanded.ChatSearchResults", get: { NagramSettings.shared.bottomUpChatSearchResults }, set: { NagramSettings.shared.bottomUpChatSearchResults = $0 }),
+        NagramGroup(tab: .chats, headerKey: "Nagram.Section.Folders", footerKeys: [], rows: [
+            .startupFolder(titleKey: "Nagram.ChatListStartupFolder"),
+            .choice(titleKey: "Nagram.ChatListFolderTabDisplayMode", prefix: "Nagram.ChatListFolderTabDisplayMode", options: ["text", "icon", "both"], current: { NagramSettings.shared.chatListFolderTabDisplayModeValue.rawValue }, set: { NagramSettings.shared.chatListFolderTabDisplayMode = $0 }),
+            .toggle(titleKey: "Nagram.ChatListFolderTabsCompact", get: { NagramSettings.shared.chatListFolderTabsCompact }, set: { NagramSettings.shared.chatListFolderTabsCompact = $0 }),
+            .toggle(titleKey: "Nagram.HideFolderUnreadCount", get: { NagramSettings.shared.hideFolderUnreadCount }, set: { NagramSettings.shared.hideFolderUnreadCount = $0 }),
+            .toggle(titleKey: "Nagram.HideAllChatsFolder", get: { NagramSettings.shared.hideAllChatsFolder }, set: { NagramSettings.shared.hideAllChatsFolder = $0 }),
+            .toggle(titleKey: "Nagram.ShowArchiveInFolders", get: { NagramSettings.shared.showArchiveInFolders }, set: { NagramSettings.shared.showArchiveInFolders = $0 }),
+            .toggle(titleKey: "Nagram.ShowFoldersInShareSheet", get: { NagramSettings.shared.showFoldersInShareSheet }, set: { NagramSettings.shared.showFoldersInShareSheet = $0 }),
+            .toggle(titleKey: "Nagram.ChooseFolderAfterJoining", get: { NagramSettings.shared.chooseFolderAfterJoining }, set: { NagramSettings.shared.chooseFolderAfterJoining = $0 }),
         ]),
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.Stories", footerKey: nil, rows: [
-            .toggle(titleKey: "Nagram.HideStories", get: { NagramSettings.shared.hideStories }, set: { NagramSettings.shared.hideStories = $0 }),
-            .toggle(titleKey: "Nagram.HideTopStories", get: { NagramSettings.shared.hideTopStories }, set: { NagramSettings.shared.hideTopStories = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
-            .toggle(titleKey: "Nagram.DisableStoryCameraSwipe", get: { NagramSettings.shared.disableStoryCameraSwipe }, set: { NagramSettings.shared.disableStoryCameraSwipe = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
-            .toggle(titleKey: "Nagram.DisableChatAvatarStories", get: { NagramSettings.shared.disableChatAvatarStories }, set: { NagramSettings.shared.disableChatAvatarStories = $0 }, isVisible: { !NagramSettings.shared.hideStories }),
+        NagramGroup(tab: .chats, headerKey: "Nagram.Section.ChatNavigation", footerKeys: ["Nagram.StayAtLatestMessageAfterRefresh.Footer", "Nagram.Section.ChatNavigation.Footer"], rows: [
+            .toggle(titleKey: "Nagram.ChatToolsEnabled", get: { NagramSettings.shared.chatToolsEnabled }, set: { NagramSettings.shared.chatToolsEnabled = $0 }),
+            .toggle(titleKey: "Nagram.RecentChats", get: { NagramSettings.shared.recentChatsEnabled }, set: { NagramSettings.shared.recentChatsEnabled = $0 }),
+            .toggle(titleKey: "Nagram.StayAtLatestMessageAfterRefresh", get: { NagramSettings.shared.stayAtLatestMessageAfterRefresh }, set: { NagramSettings.shared.stayAtLatestMessageAfterRefresh = $0 }),
+            .toggle(titleKey: "Nagram.DisableScrollToNextChannel", get: { NagramSettings.shared.disableScrollToNextChannel }, set: { NagramSettings.shared.disableScrollToNextChannel = $0 }),
+            .toggle(titleKey: "Nagram.DisableScrollToNextTopic", get: { NagramSettings.shared.disableScrollToNextTopic }, set: { NagramSettings.shared.disableScrollToNextTopic = $0 }),
         ]),
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.Camera", footerKey: "Nagram.Section.Camera.Footer", rows: [
-            .toggle(titleKey: "Nagram.DisableGalleryCamera", get: { NagramSettings.shared.disableGalleryCamera }, set: { NagramSettings.shared.disableGalleryCamera = $0 }),
-            .toggle(titleKey: "Nagram.DisableGalleryCameraPreview", get: { NagramSettings.shared.disableGalleryCameraPreview }, set: { NagramSettings.shared.disableGalleryCameraPreview = $0 }),
-            .choice(titleKey: "Nagram.RoundVideoCamera", prefix: "Nagram.RoundVideoCamera", options: ["front", "back"], current: { NagramSettings.shared.roundVideoCameraValue.rawValue }, set: { NagramSettings.shared.roundVideoCamera = $0 }),
-        ]),
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.Network", footerKey: nil, rows: [
-            .choice(titleKey: "Nagram.DownloadSpeedBoost", prefix: "Nagram.DownloadSpeedBoost", options: ["none", "medium", "maximum"], current: { NagramSettings.shared.downloadSpeedBoost }, set: { NagramSettings.shared.downloadSpeedBoost = $0 }),
-            .toggle(titleKey: "Nagram.UploadSpeedBoost", get: { NagramSettings.shared.uploadSpeedBoost }, set: { NagramSettings.shared.uploadSpeedBoost = $0 }),
+        NagramGroup(tab: .chats, headerKey: "Nagram.Section.Gesture", footerKeys: [], rows: [
+            .toggle(titleKey: "Nagram.TapMessageRowToOpenContextMenu", get: { NagramSettings.shared.tapMessageRowToOpenContextMenu }, set: { NagramSettings.shared.tapMessageRowToOpenContextMenu = $0 }),
+            .choice(titleKey: "Nagram.MessageDoubleTapAction", prefix: "Nagram.MessageDoubleTapAction", options: NagramMessageDoubleTapAction.allCases.map { $0.rawValue }, current: { NagramSettings.shared.messageDoubleTapActionValue.rawValue }, set: { NagramSettings.shared.messageDoubleTapAction = $0 }),
+            .choice(titleKey: "Nagram.MessageDoubleTapActionWithoutEditPermission", prefix: "Nagram.MessageDoubleTapAction", options: [NagramSettings.messageDoubleTapSameAsUnified] + NagramMessageDoubleTapAction.allCases.filter { $0 != .edit }.map { $0.rawValue }, current: { NagramSettings.shared.messageDoubleTapActionWithoutEditPermissionValue }, set: { NagramSettings.shared.messageDoubleTapActionWithoutEditPermission = $0 }),
+            .toggle(titleKey: "Nagram.VideoPIPSwipeUp", get: { NagramSettings.shared.videoPIPSwipeDirection == "up" }, set: { NagramSettings.shared.videoPIPSwipeDirection = $0 ? "up" : "none" }),
         ]),
         // 消息
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.MessageDisplay", footerKey: nil, rows: [
-            .toggle(titleKey: "Nagram.ChatToolsEnabled", get: { NagramSettings.shared.chatToolsEnabled }, set: { NagramSettings.shared.chatToolsEnabled = $0 }),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.MessageDisplay", footerKeys: [], rows: [
             .toggle(titleKey: "Nagram.SecondsInMessages", get: { NagramSettings.shared.secondsInMessages }, set: { NagramSettings.shared.secondsInMessages = $0 }),
             .toggle(titleKey: "Nagram.ShowForwardedMessageDate", get: { NagramSettings.shared.showForwardedMessageDate }, set: { NagramSettings.shared.showForwardedMessageDate = $0 }),
             .toggle(titleKey: "Nagram.ShowMessageId", get: { NagramSettings.shared.showMessageId }, set: { NagramSettings.shared.showMessageId = $0 }),
             .toggle(titleKey: "Nagram.HideReactions", get: { NagramSettings.shared.hideReactions }, set: { NagramSettings.shared.hideReactions = $0 }),
-            .toggle(titleKey: "Nagram.HideChannelBottomButton", get: { NagramSettings.shared.hideChannelBottomButton }, set: { NagramSettings.shared.hideChannelBottomButton = $0 }),
             .toggle(titleKey: "Nagram.HideSponsoredMessages", get: { NagramSettings.shared.hideSponsoredMessages }, set: { NagramSettings.shared.hideSponsoredMessages = $0 }),
             .toggle(titleKey: "Nagram.HidePrivateChatActivities", get: { NagramSettings.shared.hidePrivateChatActivities }, set: { NagramSettings.shared.hidePrivateChatActivities = $0 }),
         ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.MessageList", footerKey: "Nagram.StayAtLatestMessageAfterRefresh.Footer", rows: [
-            .toggle(titleKey: "Nagram.StayAtLatestMessageAfterRefresh", get: { NagramSettings.shared.stayAtLatestMessageAfterRefresh }, set: { NagramSettings.shared.stayAtLatestMessageAfterRefresh = $0 }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Channels", footerKey: "Nagram.HideChannelForwardButton.Footer", rows: [
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Channels", footerKeys: ["Nagram.HideChannelForwardButton.Footer"], rows: [
+            .toggle(titleKey: "Nagram.HideChannelBottomButton", get: { NagramSettings.shared.hideChannelBottomButton }, set: { NagramSettings.shared.hideChannelBottomButton = $0 }),
             .toggle(titleKey: "Nagram.HideChannelForwardButton", get: { NagramSettings.shared.wideChannelPosts }, set: { NagramSettings.shared.wideChannelPosts = $0 }),
         ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Translation", footerKey: "Nagram.Section.Translation.Footer", rows: [
-            .choice(titleKey: "Nagram.TranslationProvider", prefix: "Nagram.TranslationProvider", options: NagramTranslationProvider.allCases.map { $0.rawValue }, current: { NagramSettings.shared.translationProviderValue.rawValue }, set: { NagramSettings.shared.translationProvider = $0 }),
-            .navigation(titleKey: "Nagram.TranslationLLMSettings", action: llmTranslationSettingsAction),
-            .toggle(titleKey: "Nagram.TranslationKeepFormatting", get: { NagramSettings.shared.translationKeepFormatting }, set: { NagramSettings.shared.translationKeepFormatting = $0 }),
-            .toggle(titleKey: "Nagram.TranslateBeforeSend", get: { NagramSettings.shared.translateBeforeSend }, set: { NagramSettings.shared.translateBeforeSend = $0 }),
-            .choice(titleKey: "Nagram.TranslateBeforeSendTargetLang", prefix: "Nagram.TranslateBeforeSendTargetLang", options: ["en", "ar", "zh", "fr", "de", "it", "ja", "ko", "pt-BR", "ru", "es", "uk"], current: { NagramSettings.shared.translateBeforeSendTargetLang }, set: { NagramSettings.shared.translateBeforeSendTargetLang = $0 }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.STT", footerKey: "Nagram.Section.STT.Footer", rows: [
-            .choice(titleKey: "Nagram.STTProvider", prefix: "Nagram.STTProvider", options: ["default", "openAICompatible"], current: { NagramSettings.shared.sttProvider == "openAICompatible" ? "openAICompatible" : "default" }, set: { NagramSettings.shared.sttProvider = $0 }),
-            .navigation(titleKey: "Nagram.STTSettings", action: sttSettingsAction),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Pangu", footerKey: "Nagram.PanguInfo", rows: [
-            .toggle(titleKey: "Nagram.PanguOnReceiving", get: { NagramSettings.shared.enablePanguOnReceiving }, set: { NagramSettings.shared.enablePanguOnReceiving = $0 }),
-            .toggle(titleKey: "Nagram.PanguOnSending", get: { NagramSettings.shared.enablePanguOnSending }, set: { NagramSettings.shared.enablePanguOnSending = $0 }),
-            .toggle(titleKey: "Nagram.PanguOnEditing", get: { NagramSettings.shared.enablePanguOnEditing }, set: { NagramSettings.shared.enablePanguOnEditing = $0 }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.MessageMenu", footerKey: nil, rows: [
-            .navigation(titleKey: "Nagram.MessageMenu", action: messageMenuAction),
-            .toggle(titleKey: "Nagram.ConfirmUnpin", get: { NagramSettings.shared.confirmUnpin }, set: { NagramSettings.shared.confirmUnpin = $0 }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Filtering", footerKey: "Nagram.RegexFilters.Main.Footer", rows: [
-            .toggle(titleKey: "Nagram.RegexFilters.GlobalEnabled", get: { NagramSettings.shared.regexFiltersEnabled }, set: { NagramSettings.shared.regexFiltersEnabled = $0 }),
-            .toggle(titleKey: "Nagram.RegexFilters.FilterOutgoing", get: { NagramSettings.shared.regexFiltersFilterOutgoing }, set: { NagramSettings.shared.regexFiltersFilterOutgoing = $0 }),
-            .navigation(titleKey: "Nagram.RegexFilters", action: regexFiltersAction),
-        ]),
-        // 贴纸尺寸:单独成段,header 即标题,行内滑杆中央显示当前 %。
-        NagramGroup(tab: .chat, headerKey: "Nagram.StickerSize", footerKey: nil, rows: [
-            .slider(titleKey: nil, minValue: 50, maxValue: 200, get: { NagramSettings.shared.stickerSize }, set: { NagramSettings.shared.stickerSize = $0 }, isVisible: { true }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Stickers", footerKey: nil, rows: [
-            .toggle(titleKey: "Nagram.StickerTimestamp", get: { NagramSettings.shared.stickerTimestamp }, set: { NagramSettings.shared.stickerTimestamp = $0 }),
-            .choice(titleKey: "Nagram.RecentStickerLimit", prefix: "Nagram.RecentStickerLimit", options: NagramSettings.recentStickerLimitOptions.map { String($0) }, current: { String(NagramSettings.shared.recentStickerLimitValue) }, set: { value in
-                if let limit = Int32(value) {
-                    NagramSettings.shared.recentStickerLimit = limit
-                }
-            }),
-        ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Sending", footerKey: nil, rows: [
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Sending", footerKeys: [], rows: [
             .toggle(titleKey: "Nagram.DisableSendAsButton", get: { NagramSettings.shared.disableSendAsButton }, set: { NagramSettings.shared.disableSendAsButton = $0 }),
             .toggle(titleKey: "Nagram.SendWithReturnKey", get: { NagramSettings.shared.sendWithReturnKey }, set: { NagramSettings.shared.sendWithReturnKey = $0 }),
             .choice(titleKey: "Nagram.TextStyleToolbar", prefix: "Nagram.TextStyleToolbar", options: NagramTextStyleToolbarMode.allCases.map(\.rawValue), current: { NagramSettings.shared.textStyleToolbarMode.rawValue }, set: { value in
@@ -524,52 +507,74 @@ private func nagramGroups(
             .navigation(titleKey: "Nagram.TextStyleMenu", action: textStyleMenuAction),
             .toggle(titleKey: "Nagram.HideRecordingButton", get: { NagramSettings.shared.hideRecordingButton }, set: { NagramSettings.shared.hideRecordingButton = $0 }),
         ]),
-        NagramGroup(tab: .chat, headerKey: "Nagram.Section.Gesture", footerKey: "Nagram.Section.Gesture.Footer", rows: [
-            .toggle(titleKey: "Nagram.RecentChats", get: { NagramSettings.shared.recentChatsEnabled }, set: { NagramSettings.shared.recentChatsEnabled = $0 }),
-            .toggle(titleKey: "Nagram.TapMessageRowToOpenContextMenu", get: { NagramSettings.shared.tapMessageRowToOpenContextMenu }, set: { NagramSettings.shared.tapMessageRowToOpenContextMenu = $0 }),
-            .choice(titleKey: "Nagram.MessageDoubleTapAction", prefix: "Nagram.MessageDoubleTapAction", options: NagramMessageDoubleTapAction.allCases.map { $0.rawValue }, current: { NagramSettings.shared.messageDoubleTapActionValue.rawValue }, set: { NagramSettings.shared.messageDoubleTapAction = $0 }),
-            .choice(titleKey: "Nagram.MessageDoubleTapActionWithoutEditPermission", prefix: "Nagram.MessageDoubleTapAction", options: [NagramSettings.messageDoubleTapSameAsUnified] + NagramMessageDoubleTapAction.allCases.filter { $0 != .edit }.map { $0.rawValue }, current: { NagramSettings.shared.messageDoubleTapActionWithoutEditPermissionValue }, set: { NagramSettings.shared.messageDoubleTapActionWithoutEditPermission = $0 }),
-            .choice(titleKey: "Nagram.ChatListSwipeAction", prefix: "Nagram.ChatListSwipeAction", options: ["both", "switch", "quick", "none"], current: { NagramSettings.shared.chatListSwipeActionMode.rawValue }, set: { NagramSettings.shared.chatListSwipeAction = $0 }),
-            .toggle(titleKey: "Nagram.ShowArchiveInFolders", get: { NagramSettings.shared.showArchiveInFolders }, set: { NagramSettings.shared.showArchiveInFolders = $0 }),
-            .toggle(titleKey: "Nagram.OpenArchiveOnPull", get: { NagramSettings.shared.openArchiveOnPull }, set: { NagramSettings.shared.openArchiveOnPull = $0 }),
-            .toggle(titleKey: "Nagram.DisableScrollToNextChannel", get: { NagramSettings.shared.disableScrollToNextChannel }, set: { NagramSettings.shared.disableScrollToNextChannel = $0 }),
-            .toggle(titleKey: "Nagram.DisableScrollToNextTopic", get: { NagramSettings.shared.disableScrollToNextTopic }, set: { NagramSettings.shared.disableScrollToNextTopic = $0 }),
-            .toggle(titleKey: "Nagram.VideoPIPSwipeUp", get: { NagramSettings.shared.videoPIPSwipeDirection == "up" }, set: { NagramSettings.shared.videoPIPSwipeDirection = $0 ? "up" : "none" }),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.MessageMenu", footerKeys: [], rows: [
+            .navigation(titleKey: "Nagram.MessageMenu", action: messageMenuAction),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Confirmations", footerKeys: [], rows: [
+            .toggle(titleKey: "Nagram.ConfirmUnpin", get: { NagramSettings.shared.confirmUnpin }, set: { NagramSettings.shared.confirmUnpin = $0 }),
+            .toggle(titleKey: "Nagram.ConfirmCalls", get: { NagramSettings.shared.confirmCalls }, set: { NagramSettings.shared.confirmCalls = $0 }),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Stickers", footerKeys: [], rows: [
+            .slider(titleKey: "Nagram.StickerSize", minValue: 50, maxValue: 200, get: { NagramSettings.shared.stickerSize }, set: { NagramSettings.shared.stickerSize = $0 }, isVisible: { true }),
+            .toggle(titleKey: "Nagram.StickerTimestamp", get: { NagramSettings.shared.stickerTimestamp }, set: { NagramSettings.shared.stickerTimestamp = $0 }),
+            .choice(titleKey: "Nagram.RecentStickerLimit", prefix: "Nagram.RecentStickerLimit", options: NagramSettings.recentStickerLimitOptions.map { String($0) }, current: { String(NagramSettings.shared.recentStickerLimitValue) }, set: { value in
+                if let limit = Int32(value) {
+                    NagramSettings.shared.recentStickerLimit = limit
+                }
+            }),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Translation", footerKeys: ["Nagram.Section.Translation.Footer"], rows: [
+            .choice(titleKey: "Nagram.TranslationProvider", prefix: "Nagram.TranslationProvider", options: NagramTranslationProvider.allCases.map { $0.rawValue }, current: { NagramSettings.shared.translationProviderValue.rawValue }, set: { NagramSettings.shared.translationProvider = $0 }),
+            .navigation(titleKey: "Nagram.TranslationLLMSettings", action: llmTranslationSettingsAction),
+            .toggle(titleKey: "Nagram.TranslationKeepFormatting", get: { NagramSettings.shared.translationKeepFormatting }, set: { NagramSettings.shared.translationKeepFormatting = $0 }),
+            .toggle(titleKey: "Nagram.TranslateBeforeSend", get: { NagramSettings.shared.translateBeforeSend }, set: { NagramSettings.shared.translateBeforeSend = $0 }),
+            .choice(titleKey: "Nagram.TranslateBeforeSendTargetLang", prefix: "Nagram.TranslateBeforeSendTargetLang", options: ["en", "ar", "zh", "fr", "de", "it", "ja", "ko", "pt-BR", "ru", "es", "uk"], current: { NagramSettings.shared.translateBeforeSendTargetLang }, set: { NagramSettings.shared.translateBeforeSendTargetLang = $0 }),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.STT", footerKeys: ["Nagram.Section.STT.Footer"], rows: [
+            .choice(titleKey: "Nagram.STTProvider", prefix: "Nagram.STTProvider", options: ["default", "openAICompatible"], current: { NagramSettings.shared.sttProvider == "openAICompatible" ? "openAICompatible" : "default" }, set: { NagramSettings.shared.sttProvider = $0 }),
+            .navigation(titleKey: "Nagram.STTSettings", action: sttSettingsAction),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Pangu", footerKeys: ["Nagram.PanguInfo"], rows: [
+            .toggle(titleKey: "Nagram.PanguOnReceiving", get: { NagramSettings.shared.enablePanguOnReceiving }, set: { NagramSettings.shared.enablePanguOnReceiving = $0 }),
+            .toggle(titleKey: "Nagram.PanguOnSending", get: { NagramSettings.shared.enablePanguOnSending }, set: { NagramSettings.shared.enablePanguOnSending = $0 }),
+            .toggle(titleKey: "Nagram.PanguOnEditing", get: { NagramSettings.shared.enablePanguOnEditing }, set: { NagramSettings.shared.enablePanguOnEditing = $0 }),
+        ]),
+        NagramGroup(tab: .messages, headerKey: "Nagram.Section.Filtering", footerKeys: ["Nagram.RegexFilters.Main.Footer"], rows: [
+            .toggle(titleKey: "Nagram.RegexFilters.GlobalEnabled", get: { NagramSettings.shared.regexFiltersEnabled }, set: { NagramSettings.shared.regexFiltersEnabled = $0 }),
+            .toggle(titleKey: "Nagram.RegexFilters.FilterOutgoing", get: { NagramSettings.shared.regexFiltersFilterOutgoing }, set: { NagramSettings.shared.regexFiltersFilterOutgoing = $0 }),
+            .navigation(titleKey: "Nagram.RegexFilters", action: regexFiltersAction),
         ]),
         // 其他
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.Experimental", footerKey: "Nagram.MediaMetadata.Footer", rows: [
-            .toggle(titleKey: "Nagram.MediaMetadata", get: { NagramSettings.shared.mediaMetadataEnabled }, set: { NagramSettings.shared.mediaMetadataEnabled = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: nil, footerKey: "Nagram.FixLinkPreviews.Footer", rows: [
-            .toggle(titleKey: "Nagram.FixLinkPreviews", get: { NagramSettings.shared.fixLinkPreviews }, set: { NagramSettings.shared.fixLinkPreviews = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.Profile", footerKey: nil, rows: [
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.Profile", footerKeys: [], rows: [
             .toggle(titleKey: "Nagram.ShowProfileId", get: { NagramSettings.shared.showProfileId }, set: { NagramSettings.shared.showProfileId = $0 }),
             .toggle(titleKey: "Nagram.ShowDC", get: { NagramSettings.shared.showDC }, set: { NagramSettings.shared.showDC = $0 }),
             .toggle(titleKey: "Nagram.ShowRegDate", get: { NagramSettings.shared.showRegDate }, set: { NagramSettings.shared.showRegDate = $0 }),
             .navigation(titleKey: "Nagram.GroupProfileSettings", action: groupProfileSettingsAction),
+        ]),
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.Privacy", footerKeys: ["Nagram.DisableFiltering.Footer", "Nagram.ForceCopy.Footer"], rows: [
             .toggle(titleKey: "Nagram.HidePhoneInSettings", get: { NagramSettings.shared.hidePhoneInSettings }, set: { NagramSettings.shared.hidePhoneInSettings = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.Calls", footerKey: nil, rows: [
-            .toggle(titleKey: "Nagram.ConfirmCalls", get: { NagramSettings.shared.confirmCalls }, set: { NagramSettings.shared.confirmCalls = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.Sync", footerKey: "Nagram.ICloudSync.Footer", rows: [
-            .toggle(titleKey: "Nagram.ICloudSync", get: { NagramSettings.shared.iCloudSyncEnabled }, set: { NagramSettings.shared.iCloudSyncEnabled = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.Privacy", footerKey: "Nagram.DisableFiltering.Footer", rows: [
             .toggleWithEnabled(titleKey: "Nagram.DisableFiltering", get: sensitiveContentEnabled, set: setSensitiveContentEnabled, enabled: sensitiveContentCanAdjust, enableInteractiveChanges: false),
             .toggle(titleKey: "Nagram.SkipSensitiveContentWarning", get: { NagramSettings.shared.skipSensitiveContentWarning }, set: { NagramSettings.shared.skipSensitiveContentWarning = $0 }),
-        ]),
-        NagramGroup(tab: .other, headerKey: nil, footerKey: "Nagram.ForceCopy.Footer", rows: [
             .toggle(titleKey: "Nagram.ForceCopy", get: { NagramSettings.shared.forceCopyEnabled }, set: { NagramSettings.shared.forceCopyEnabled = $0 }),
         ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.AutoInlineBot", footerKey: "Nagram.AutoInlineBot.Footer", rows: [
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.AutoInlineBot", footerKeys: ["Nagram.AutoInlineBot.Footer"], rows: [
             .toggle(titleKey: "Nagram.AutoInlineBot.Enabled", get: { NagramSettings.shared.autoInlineBotEnabled }, set: { NagramSettings.shared.autoInlineBotEnabled = $0 }),
             .navigation(titleKey: "Nagram.InlineBotRules", action: inlineBotRulesAction),
         ]),
-        NagramGroup(tab: .other, headerKey: "Nagram.Section.SessionBackup", footerKey: "Nagram.SessionBackup.Footer", rows: [
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.Network", footerKeys: [], rows: [
+            .choice(titleKey: "Nagram.DownloadSpeedBoost", prefix: "Nagram.DownloadSpeedBoost", options: ["none", "medium", "maximum"], current: { NagramSettings.shared.downloadSpeedBoost }, set: { NagramSettings.shared.downloadSpeedBoost = $0 }),
+            .toggle(titleKey: "Nagram.UploadSpeedBoost", get: { NagramSettings.shared.uploadSpeedBoost }, set: { NagramSettings.shared.uploadSpeedBoost = $0 }),
+        ]),
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.Sync", footerKeys: ["Nagram.ICloudSync.Footer"], rows: [
+            .toggle(titleKey: "Nagram.ICloudSync", get: { NagramSettings.shared.iCloudSyncEnabled }, set: { NagramSettings.shared.iCloudSyncEnabled = $0 }),
+        ]),
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.SessionBackup", footerKeys: ["Nagram.SessionBackup.Footer"], rows: [
             .navigation(titleKey: "Nagram.SessionBackup", action: sessionBackupAction),
             .toggle(titleKey: "Nagram.SessionBackup.ICloud", get: { NagramSettings.shared.sessionBackupICloudSync }, set: { NagramSettings.shared.sessionBackupICloudSync = $0 }),
+        ]),
+        NagramGroup(tab: .other, headerKey: "Nagram.Section.Experimental", footerKeys: ["Nagram.MediaMetadata.Footer", "Nagram.FixLinkPreviews.Footer"], rows: [
+            .toggle(titleKey: "Nagram.MediaMetadata", get: { NagramSettings.shared.mediaMetadataEnabled }, set: { NagramSettings.shared.mediaMetadataEnabled = $0 }),
+            .toggle(titleKey: "Nagram.FixLinkPreviews", get: { NagramSettings.shared.fixLinkPreviews }, set: { NagramSettings.shared.fixLinkPreviews = $0 }),
         ]),
     ].filter { group in
         // 没有 iCloud KVS entitlement 的构建里同步不可用，不显示该分组。
@@ -1110,8 +1115,9 @@ public func nagramSettingsController(context: AccountContext, deepLinkPath: Stri
 
             let footerStableId = stableId
             stableId += 1
-            if isCurrent, let footerKey = group.footerKey {
-                entries.append(.footer(stableId: footerStableId, section: sectionId, text: ngI18n(footerKey, lang)))
+            if isCurrent, !group.footerKeys.isEmpty {
+                let footerText = group.footerKeys.map { ngI18n($0, lang) }.joined(separator: "\n\n")
+                entries.append(.footer(stableId: footerStableId, section: sectionId, text: footerText))
             }
         }
 
