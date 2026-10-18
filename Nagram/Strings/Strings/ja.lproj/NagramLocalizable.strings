@@ -540,7 +540,8 @@ iCloud キーチェーン同期を有効にすると、バックアップは他�
 "Nagram.SearchLink.Open" = "リンクを開く";
 "Nagram.SearchLink.OpenMessage" = "メッセージへ移動";
 "Nagram.SearchLink.OpenInvite" = "招待リンクを開く";
-"Nagram.Section.BottomUpLists" = "下から上へ表示";
-"Nagram.Section.BottomUpLists.Footer" = "これらのリストを画面の下から上へ表示し、最新または最も関連性の高い項目を一番下に置きます。上にスクロールするとさらに読み込みます。検索結果は検索バーが下部バーにある場合のみ変わります。";
-"Nagram.BottomUpGlobalSearchResults" = "検索結果";
-"Nagram.BottomUpChatSearchResults" = "チャット内の検索結果";
+"Nagram.Section.OneHanded" = "片手モード";
+"Nagram.Section.OneHanded.Footer" = "検索を親指の届く範囲で行えるようにします。結果は検索フィールドのそばの画面下部から並び、上にスクロールするとさらに表示されます。チャットリストの検索結果は、検索バーが下部バーにある場合のみ変わります。";
+"Nagram.OneHanded.GlobalSearchResults" = "検索結果を下から表示";
+"Nagram.OneHanded.ChatSearchResults" = "チャット内の検索結果を下から表示";
+"Nagram.OneHanded.ChatSearchFieldAtBottom" = "チャット内の検索フィールドを下部に表示";

@@ -439,9 +439,10 @@ private func nagramGroups(
             .slider(titleKey: "Nagram.GlassTransparency.OverlayOpacity", minValue: 0, maxValue: 100, get: { NagramSettings.shared.glassTransparencyPercent }, set: { NagramSettings.shared.glassTransparencyPercent = $0 }, isVisible: { NagramSettings.shared.glassTransparencyModeValue == .custom }),
             .toggle(titleKey: "Nagram.ControlHighlight", get: { NagramSettings.shared.controlHighlightEnabled }, set: { NagramSettings.shared.controlHighlightEnabled = $0 }),
         ]),
-        NagramGroup(tab: .general, headerKey: "Nagram.Section.BottomUpLists", footerKey: "Nagram.Section.BottomUpLists.Footer", rows: [
-            .toggle(titleKey: "Nagram.BottomUpGlobalSearchResults", get: { NagramSettings.shared.bottomUpGlobalSearchResults }, set: { NagramSettings.shared.bottomUpGlobalSearchResults = $0 }),
-            .toggle(titleKey: "Nagram.BottomUpChatSearchResults", get: { NagramSettings.shared.bottomUpChatSearchResults }, set: { NagramSettings.shared.bottomUpChatSearchResults = $0 }),
+        NagramGroup(tab: .general, headerKey: "Nagram.Section.OneHanded", footerKey: "Nagram.Section.OneHanded.Footer", rows: [
+            .toggle(titleKey: "Nagram.OneHanded.ChatSearchFieldAtBottom", get: { NagramSettings.shared.chatSearchFieldAtBottom }, set: { NagramSettings.shared.chatSearchFieldAtBottom = $0 }),
+            .toggle(titleKey: "Nagram.OneHanded.GlobalSearchResults", get: { NagramSettings.shared.bottomUpGlobalSearchResults }, set: { NagramSettings.shared.bottomUpGlobalSearchResults = $0 }),
+            .toggle(titleKey: "Nagram.OneHanded.ChatSearchResults", get: { NagramSettings.shared.bottomUpChatSearchResults }, set: { NagramSettings.shared.bottomUpChatSearchResults = $0 }),
         ]),
         NagramGroup(tab: .general, headerKey: "Nagram.Section.Stories", footerKey: nil, rows: [
             .toggle(titleKey: "Nagram.HideStories", get: { NagramSettings.shared.hideStories }, set: { NagramSettings.shared.hideStories = $0 }),

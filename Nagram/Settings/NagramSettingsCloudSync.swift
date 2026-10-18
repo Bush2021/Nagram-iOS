@@ -22,6 +22,7 @@ enum NagramSettingsSyncKeys {
         "nagram.hidePrivateChatActivities",
         "nagram.bottomUpGlobalSearchResults",
         "nagram.bottomUpChatSearchResults",
+        "nagram.chatSearchFieldAtBottom",
         "nagram.confirmCalls",
         "nagram.confirmUnpin",
         "nagram.showDC",
