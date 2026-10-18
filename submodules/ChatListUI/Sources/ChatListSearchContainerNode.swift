@@ -40,6 +40,7 @@ import SectionTitleContextItem
 import EdgeEffect
 import ComponentFlow
 import ComponentDisplayAdapters
+import NagramSettings // MARK: NAGRAM
 
 private enum ChatListTokenId: Int32 {
     case archive
@@ -128,6 +129,15 @@ public final class ChatListSearchContainerNode: SearchDisplayControllerContentNo
     
     public var dismissSearch: (() -> Void)?
     public var dismissSearchImmediately: (() -> Void)?
+    // MARK: NAGRAM — 搜索栏在底部时由创建者设置，结果页据此（再结合设置开关）从下往上排列。
+    public var nagramBottomUp: Bool {
+        get {
+            return self.paneContainerNode.nagramBottomUp
+        }
+        set {
+            self.paneContainerNode.nagramBottomUp = newValue
+        }
+    }
     var openAdInfo: ((ASDisplayNode, AdPeer) -> Void)?
     
     private let edgeEffectView: EdgeEffectView
@@ -1064,14 +1074,20 @@ public final class ChatListSearchContainerNode: SearchDisplayControllerContentNo
         }
         
         bottomInset += 44.0
-        
+        // MARK: NAGRAM — 从下往上显示时结果停在列表底端，底部浮着的分类栏和搜索框会挡住最贴近它们的几行，
+        // 留白要到分类栏上沿为止。
+        var paneBottomInset = bottomInset
+        if self.nagramBottomUp && NagramSettings.shared.bottomUpGlobalSearchResults && self.displaySearchFilters {
+            paneBottomInset = max(bottomInset, layout.size.height - self.filterContainerNode.frame.minY + 8.0)
+        }
+
         let edgeEffectHeight: CGFloat = bottomInset + 8.0
         let edgeEffectFrame = CGRect(origin: CGPoint(x: 0.0, y: layout.size.height - edgeEffectHeight), size: CGSize(width: layout.size.width, height: edgeEffectHeight))
         transition.updateFrame(view: self.edgeEffectView, frame: edgeEffectFrame)
         self.edgeEffectView.update(content: self.presentationData.theme.list.plainBackgroundColor, rect: edgeEffectFrame, edge: .bottom, edgeSize: min(edgeEffectHeight, 50.0), transition: ComponentTransition(transition))
         transition.updateAlpha(layer: self.edgeEffectView.layer, alpha: edgeEffectHeight > 21.0 ? 1.0 : 0.0)
 
-        self.paneContainerNode.update(size: CGSize(width: layout.size.width, height: layout.size.height), sideInset: layout.safeInsets.left, topInset: topInset, bottomInset: bottomInset, visibleHeight: layout.size.height, presentationData: self.presentationData, availablePanes: availablePanes, transition: transition)
+        self.paneContainerNode.update(size: CGSize(width: layout.size.width, height: layout.size.height), sideInset: layout.safeInsets.left, topInset: topInset, bottomInset: paneBottomInset, visibleHeight: layout.size.height, presentationData: self.presentationData, availablePanes: availablePanes, transition: transition)
     }
     
     private var currentMessages: ([EnginePeer.Id: EnginePeer], [EngineMessage.Id: EngineMessage]) {

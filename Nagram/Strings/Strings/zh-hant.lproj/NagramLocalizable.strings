@@ -540,3 +540,7 @@
 "Nagram.SearchLink.Open" = "開啟連結";
 "Nagram.SearchLink.OpenMessage" = "跳至訊息";
 "Nagram.SearchLink.OpenInvite" = "開啟邀請連結";
+"Nagram.Section.BottomUpLists" = "由下往上顯示";
+"Nagram.Section.BottomUpLists.Footer" = "這些列表從螢幕底部往上排列，最新或最相關的項目在最下方，往上滑載入更多。搜尋結果僅在搜尋列位於底部列時生效。";
+"Nagram.BottomUpGlobalSearchResults" = "搜尋結果";
+"Nagram.BottomUpChatSearchResults" = "聊天內搜尋結果";

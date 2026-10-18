@@ -142,6 +142,7 @@ swift_library(
         "//Nagram/Settings:NagramSettings",
         "//Nagram/Strings:NagramStrings",
         "//Nagram/SearchLink:NagramSearchLink",
+        "//Nagram/FlippedList:NagramFlippedList",
     ],
     visibility = [
         "//visibility:public",
