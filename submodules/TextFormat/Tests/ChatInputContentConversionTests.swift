@@ -481,6 +481,49 @@ final class ChatInputContentConversionTests: XCTestCase {
         XCTAssertEqual(quoteEntities.first?.1, true)
     }
 
+    // MARK: NAGRAM — Send Without Formatting must send a quote as ONE quote entity, blank lines included. Each line
+    // used to be marked on its own (the "\n" between lines unmarked), so a quote arrived as one quote per line,
+    // and its blank lines were dropped.
+    func test_sendWithoutFormatting_keepsAQuoteWithBlankLinesWhole() {
+        func p(_ text: String) -> ChatInputBlock {
+            return .paragraph(ChatInputParagraph(style: .body, runs: text.isEmpty ? [] : [ChatInputRun(text: text)]))
+        }
+        let content = ChatInputContent(blocks: [
+            .paragraph(ChatInputParagraph(style: .heading1, runs: [ChatInputRun(text: "T")])),
+            .blockQuote(ChatInputBlockQuote(content: ChatInputContent(blocks: [p(""), p("a"), p(""), p("b"), p("")]), collapsed: true)),
+            p("c"),
+        ])
+        let sent = entityPreservingFallbackAttributedString(from: content, preserveCustomEmoji: { _, _ in true })
+        XCTAssertEqual(sent.string, "T\na\n\nb\nc")
+
+        let quoteEntities = generateChatInputTextEntities(sent).compactMap { entity -> (Range<Int>, Bool)? in
+            if case let .BlockQuote(isCollapsed) = entity.type {
+                return (entity.range, isCollapsed)
+            }
+            return nil
+        }
+        XCTAssertEqual(quoteEntities.count, 1)
+        XCTAssertEqual(quoteEntities.first?.0, 2 ..< 6)
+        XCTAssertEqual(quoteEntities.first?.1, true)
+    }
+
+    // MARK: NAGRAM — outside a quote, blank paragraphs are still dropped, and two quotes stay two entities.
+    func test_sendWithoutFormatting_separatesAdjacentQuotes() {
+        func quote(_ text: String) -> ChatInputBlock {
+            return .blockQuote(ChatInputBlockQuote(content: ChatInputContent(blocks: [.paragraph(ChatInputParagraph(style: .body, runs: [ChatInputRun(text: text)]))]), collapsed: false))
+        }
+        let content = ChatInputContent(blocks: [quote("a"), .paragraph(ChatInputParagraph(style: .body, runs: [])), quote("b")])
+        let sent = entityPreservingFallbackAttributedString(from: content, preserveCustomEmoji: { _, _ in true })
+        XCTAssertEqual(sent.string, "a\nb")
+        let quoteRanges = generateChatInputTextEntities(sent).compactMap { entity -> Range<Int>? in
+            if case .BlockQuote = entity.type {
+                return entity.range
+            }
+            return nil
+        }
+        XCTAssertEqual(quoteRanges, [0 ..< 1, 2 ..< 3])
+    }
+
     /// The chat-currency direction: a hand-built FOLDED `.collapsedBlock` string (exactly what
     /// `textAttributedStringForStateText` consumes) must survive model round-trip with its nested
     /// content + placement intact — proving the legacy composer's display path stays byte-identical.
