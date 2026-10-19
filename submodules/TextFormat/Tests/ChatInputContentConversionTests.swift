@@ -453,6 +453,34 @@ final class ChatInputContentConversionTests: XCTestCase {
         XCTAssertEqual(chatInputContent(from: attributedString(from: content)), content)
     }
 
+    // MARK: NAGRAM — a collapsed quote restored from its message entity (draft restore, editing) must parse as ONE
+    // collapsed quote. With the quote attribute left on the placeholder's content it parsed as a collapsed quote
+    // nested in a collapsed quote, which is not entity-expressible and sent the draft down the rich path.
+    func test_collapsedQuoteEntity_restoresAsSingleEntityExpressibleQuote() {
+        let restored = chatInputStateStringWithAppliedEntities("x\na\nb", entities: [
+            MessageTextEntity(range: 2 ..< 5, type: .BlockQuote(isCollapsed: true))
+        ])
+        let content = chatInputContent(from: restored)
+        XCTAssertEqual(content, ChatInputContent(blocks: [
+            .paragraph(ChatInputParagraph(style: .body, runs: [ChatInputRun(text: "x")])),
+            .blockQuote(ChatInputBlockQuote(content: ChatInputContent(blocks: [
+                .paragraph(ChatInputParagraph(style: .body, runs: [ChatInputRun(text: "a")])),
+                .paragraph(ChatInputParagraph(style: .body, runs: [ChatInputRun(text: "b")])),
+            ]), collapsed: true)),
+        ]))
+        XCTAssertTrue(content.isEntityExpressible())
+
+        let quoteEntities = generateChatInputTextEntities(expandedInputStateAttributedString(attributedString(from: content))).compactMap { entity -> (Range<Int>, Bool)? in
+            if case let .BlockQuote(isCollapsed) = entity.type {
+                return (entity.range, isCollapsed)
+            }
+            return nil
+        }
+        XCTAssertEqual(quoteEntities.count, 1)
+        XCTAssertEqual(quoteEntities.first?.0, 2 ..< 5)
+        XCTAssertEqual(quoteEntities.first?.1, true)
+    }
+
     /// The chat-currency direction: a hand-built FOLDED `.collapsedBlock` string (exactly what
     /// `textAttributedStringForStateText` consumes) must survive model round-trip with its nested
     /// content + placement intact — proving the legacy composer's display path stays byte-identical.
