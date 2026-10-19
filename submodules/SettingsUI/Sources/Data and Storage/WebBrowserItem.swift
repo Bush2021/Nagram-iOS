@@ -171,7 +171,8 @@ private final class WebBrowserItemNode: ListViewItemNode {
                     } else {
                         let icons = item.context.sharedContext.applicationBindings.getAvailableAlternateIcons()
                         let current = item.context.sharedContext.applicationBindings.getAlternateIconName()
-                        let currentIcon = icons.first(where: { $0.name == current })?.imageName ?? "BlueIcon"
+                        // MARK: NAGRAM — the default icon has no alternate name; fall back to it instead of the unbundled BlueIcon.
+                        let currentIcon = icons.first(where: { $0.name == current })?.imageName ?? icons.first(where: { $0.isDefault })?.imageName ?? "BlueIcon"
                         if let image = loadWebBrowserAppIconImage(currentIcon) {
                             updatedIconSignal = openInAppIcon(engine: item.context.engine, appIcon: .image(image: image))
                         }
