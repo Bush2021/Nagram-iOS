@@ -23,14 +23,17 @@ name: TestFlight (Nagram)
 # the notes of an App Store version are gathered from.
 #
 # A build that goes to TestFlight is also published as the GitHub release
-# v<app version>-<build number> and posted to the Telegram channels, with the
-# same notes followed by docs/nagram/releases/install.md, which is the same
-# for every release and of no use in TestFlight. The post needs the secret
-# NAGRAM_CHANNEL_BOT_TOKEN and the variables NAGRAM_CHANNEL_ASSETS_CHAT_ID
-# (gets the files), NAGRAM_CHANNEL_CHAT_ID (gets a copy of the post); nothing
-# is posted while they are missing. Its Bot API server runs with
+# v<app version>-<build number> and posted to the Telegram assets channel,
+# with the same notes followed by docs/nagram/releases/install.md, which is
+# the same for every release and of no use in TestFlight. The post needs the
+# secret NAGRAM_CHANNEL_BOT_TOKEN and the variable NAGRAM_CHANNEL_ASSETS_CHAT_ID;
+# nothing is posted while they are missing. The official channel
+# (NAGRAM_CHANNEL_CHAT_ID) gets only the App Store announcements of
+# appstore.yml. Its Bot API server runs with
 # TELEGRAM_API_ID and TELEGRAM_API_HASH, which the build needs anyway. The variable
 # NAGRAM_TESTFLIGHT_URL, the public TestFlight link, adds a button to the post.
+# The post is tagged #testflight; appstore.yml announces the version submitted
+# to the App Store as #release.
 #
 # Make the cert .p12:  security export is not enough — export from Keychain Access
 # (Apple Distribution: Kitta Ltd, "Export... .p12"), then: base64 -i dist.p12 | pbcopy
@@ -553,7 +556,6 @@ jobs:
     env:
       BOT_TOKEN: ${{ secrets.NAGRAM_CHANNEL_BOT_TOKEN }}
       ASSETS_CHAT_ID: ${{ vars.NAGRAM_CHANNEL_ASSETS_CHAT_ID }}
-      OFFICIAL_CHAT_ID: ${{ vars.NAGRAM_CHANNEL_CHAT_ID }}
       TESTFLIGHT_URL: ${{ vars.NAGRAM_TESTFLIGHT_URL }}
       VERSION: ${{ needs.build-upload.outputs.version }}
       BUILD: ${{ needs.build-upload.outputs.build }}
@@ -562,21 +564,11 @@ jobs:
       - name: Check the configuration
         id: configuration
         run: |
-          if [ -z "$BOT_TOKEN" ] || [ -z "$ASSETS_CHAT_ID$OFFICIAL_CHAT_ID" ]; then
-            echo "::notice::NAGRAM_CHANNEL_BOT_TOKEN or both channels are not set, nothing is posted."
+          if [ -z "$BOT_TOKEN" ] || [ -z "$ASSETS_CHAT_ID" ]; then
+            echo "::notice::NAGRAM_CHANNEL_BOT_TOKEN or NAGRAM_CHANNEL_ASSETS_CHAT_ID is not set, nothing is posted."
             exit 0
           fi
-          # The files are sent to the assets channel and the official one
-          # gets a copy of the post; with one channel set, it gets the post.
-          CHAT_ID="${ASSETS_CHAT_ID:-$OFFICIAL_CHAT_ID}"
-          COPY_TO=""
-          if [ -n "$ASSETS_CHAT_ID" ] && [ "$OFFICIAL_CHAT_ID" != "$ASSETS_CHAT_ID" ]; then
-            COPY_TO="$OFFICIAL_CHAT_ID"
-          fi
-          {
-            echo "chat=$CHAT_ID"
-            echo "copy=$COPY_TO"
-          } >> "$GITHUB_OUTPUT"
+          echo "chat=$ASSETS_CHAT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Clone
         if: steps.configuration.outputs.chat != ''
@@ -617,24 +609,23 @@ jobs:
             else
               echo "*$RELEASE"
             fi
-            echo "问题反馈=https://t.me/OrIssuesBot | Assets={post}"
+            echo "问题反馈=https://t.me/OrIssuesBot"
             echo "BUTTONS"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Post to the channels
+      - name: Post to the channel
         if: steps.configuration.outputs.chat != ''
-        uses: NextAlone/NagramActionRelated/channel-publish@2b74e4cd4e3c89fcc9d50095c039e467c674661f
+        uses: NextAlone/NagramActionRelated/channel-publish@5de594cfb14d39bd21f4bb513ac6fe355aec1b46
         with:
           bot-token: ${{ secrets.NAGRAM_CHANNEL_BOT_TOKEN }}
           api-id: ${{ secrets.TELEGRAM_API_ID }}
           api-hash: ${{ secrets.TELEGRAM_API_HASH }}
           chat-id: ${{ steps.configuration.outputs.chat }}
-          copy-to: ${{ steps.configuration.outputs.copy }}
           directory: ${{ runner.temp }}/channel
           title: Nagram iOS
           version: ${{ env.VERSION }}
           build: ${{ env.BUILD }}
-          hashtags: ios release
+          hashtags: ios testflight
           notes-file: ${{ steps.post.outputs.notes }}
           notes-en-file: ${{ steps.post.outputs.notes_en }}
           # The notes name these sections the same way in every release.
@@ -695,7 +686,7 @@ jobs:
 
       - name: Post to the channel
         if: steps.configuration.outputs.ready == 'true'
-        uses: NextAlone/NagramActionRelated/channel-publish@2b74e4cd4e3c89fcc9d50095c039e467c674661f
+        uses: NextAlone/NagramActionRelated/channel-publish@5de594cfb14d39bd21f4bb513ac6fe355aec1b46
         with:
           bot-token: ${{ secrets.NAGRAM_CHANNEL_BOT_TOKEN }}
           api-id: ${{ secrets.TELEGRAM_API_ID }}
