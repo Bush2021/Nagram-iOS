@@ -4799,7 +4799,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                         strongSelf.activateSearch(domain: .member(peer._asPeer()))
                     })))
                 }
-                
+                // MARK: NAGRAM — 长按头像显示成员管理项
+                if NagramSettings.shared.memberAdminActionsOnAvatar {
+                    items.append(contentsOf: strongSelf.nagramMemberAdminMenuItems(peer: peer))
+                }
+
                 strongSelf.chatDisplayNode.messageTransitionNode.dismissMessageReactionContexts()
                 
                 strongSelf.canReadHistory.set(false)
