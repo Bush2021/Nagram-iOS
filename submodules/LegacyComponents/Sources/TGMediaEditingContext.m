@@ -1008,7 +1008,17 @@
 
 + (bool)savedHighQualityPhoto
 {
-    return [[self highQualityPhotoDefaults] boolForKey:@"TG_photoHighQuality_v0"];
+    NSUserDefaults *defaults = [self highQualityPhotoDefaults];
+    if ([defaults objectForKey:@"TG_photoHighQuality_v0"] == nil)
+    {
+        // Earlier builds kept the choice in the app's standard defaults; carry it over once.
+        NSNumber *legacyValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"TG_photoHighQuality_v0"];
+        if (legacyValue == nil)
+            return false;
+        [defaults setBool:legacyValue.boolValue forKey:@"TG_photoHighQuality_v0"];
+        return legacyValue.boolValue;
+    }
+    return [defaults boolForKey:@"TG_photoHighQuality_v0"];
 }
 
 + (void)setSavedHighQualityPhoto:(bool)highQualityPhoto
